@@ -64,6 +64,11 @@ public:
             j["data"]["running_time"] = GBKtoUTF8(printDuringTime(time(nullptr) - llStartTime));
             j["data"]["cmd_count"] = std::to_string(FrqMonitor::sumFrqTotal.load());
             j["data"]["cmd_count_today"] = std::to_string(today->get("frq"));
+            j["data"]["cmd_cpu"] = std::toString(getWinCpuUsage() / 10.0);
+            j["data"]["cmd_ram"] = std::to_string(getRamPort());
+            j["data"]["cmd_disk"] = std::toString(milDisk / 10.0);
+            j["data"]["cmd_disk_free"] = std::toString(mbFreeBytes);
+            j["data"]["cmd_disk_total"] = std::toString(mbTotalBytes)
             ret = j.dump();
         }
         catch(const std::exception& e)

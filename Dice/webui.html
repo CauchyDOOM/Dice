@@ -74,11 +74,16 @@
               </div>   
             </div>
             <div class="layui-col-md6">
-              <div class="layui-panel layui-hide" style="padding: 10px;">
+              <div class="layui-panel" style="padding: 10px;">
                 <div class="layui-text">
                   <h3>系统信息</h3>
                   <p>
-                     还没写还没写还没写 
+                    <span id="basic-info">CPU占用：{{= d.cmd_cpu }}
+                    <br>
+                    内存占用：{{= d.cmd_ram }}
+                    <br>
+                    磁盘占用：{{= d.cmd_disk }}%(空余:{{= d.cmd_free }}GB/{{= d.cmd_total }}GB)</span>
+                    <br>
                   </p>
                 </div>
               </div>   
