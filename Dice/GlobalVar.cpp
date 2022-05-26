@@ -1,4 +1,3 @@
-# pragma warning (disable:4819)
 /*
  *  _______     ________    ________    ________    __
  * |   __  \   |__    __|  |   _____|  |   _____|  |  |
@@ -68,7 +67,7 @@ const dict_ci<string> PlainMsg
 	{"strAkShow","{self}的当前分歧:{fork} {li}"},
 	{"strAkClr","{self}已清除本轮分歧{fork}√"},
 	{"strAdminOptionEmpty","找{self}有什么事么？{nick}"},			//
-	{"strLogNew","{self}开始新日志记录√\n请适时用.log off暂停或.log end完成记录"},
+	{"strLogNew","{self}开始记录新日志{log_name}√\n请适时用.log off暂停或.log end完成记录"},
 	{"strLogOn","{self}开始日志记录√\n可使用.log off暂停记录"},
 	{"strLogOnAlready","{self}正在记录中！"},
 	{"strLogOff","{self}已暂停日志记录√\n可使用.log on恢复记录"},
@@ -76,7 +75,7 @@ const dict_ci<string> PlainMsg
 	{"strLogEnd","{self}已完成日志记录√\n正在上传日志文件{log_file}"},
 	{"strLogEndEmpty","{self}已结束记录√\n本次无日志产生"},
 	{"strLogNullErr","{self}无日志记录或已结束！"},
-	{"strLogUpSuccess","{self}已完成日志上传√\n请访问 https://logpainter.kokona.tech/?s3={log_file} 以查看记录"},
+	{"strLogUpSuccess","{self}已完成日志上传√\n请访问 {log_url} 以查看记录"},
 	{"strLogUpFailure","{self}上传日志文件失败，正在第{retry}次重传{log_file}…{ret}"},
 	{"strLogUpFailureEnd","很遗憾，{self}无法成功上传日志文件×\n{ret}\n如需获取可联系Master:{master_ID}\n文件名:{log_file}"},
 	{"strGMTableShow","{self}记录的{table_name}列表: {res}"},
@@ -450,7 +449,7 @@ const dict_ci<string> GlobalComment{
 	{"strFumble", "多轮检定大失败"},
 	{"strGlobalOff", "全局静默时对私聊指令或开启指令的回执"},
 	//
-	{"strGroupAuthorized", "group+许可使用后在目标群的回执"},
+	{"strGroupAuthorized", "!authorize+群号授权成功后在目标群的回执"},
 	{"strGroupBan", "group ban禁言群员的回执"},
 	{"strGroupCardSet", "group card修改群名片的回执"},
 	//
@@ -483,6 +482,8 @@ const dict_ci<string> GlobalComment{
 };
 const dict_ci<string> HelpDoc = {
 {"更新",R"(
+612:新增mod代理事件
+611:更新WebUI自定义回执
 610:新增mod定时事件
 609:新增mod循环事件
 608:新增.mod指令
@@ -497,16 +498,13 @@ const dict_ci<string> HelpDoc = {
 597:冷却计时器
 596:角色卡/Conf允许读写table
 595:lua可获取群名片/权限/最后发言
-594:setcoc优化
 593:reply新增触发限制
 590:lua内置http
 589:ak安科安价指令
 588:适配频道消息
-587:ww调用优化
 585:WebUI
 581:角色掷骰统计
 579:允许转义文本多选一
-576:定时任务脚本
 569:.rc/.draw暗骰暗抽
 567:敏感词检测
 566:.help查询建议
@@ -578,23 +576,25 @@ mod按列表顺序读取内容，并从后向前覆盖)"},
 .ak show 查看分歧选项
 .ak clr 清除本轮分歧)"},
 {"log",R"(跑团日志记录.log
-.log new 新建日志并开始记录
+.log new 日志名 新建日志并开始记录
+*日志名须作为文件名合法*
 .log on 开始记录
 .log off 暂停记录
 .log end 完成记录并发送日志文件
-日志上传存在失败可能，届时请联系{self}后台管理索取)"},
+日志上传存在失败可能，届时请.send联系{self}后台管理索取)"},
 {"deck",R"(牌堆实例.deck
-.deck set ([牌堆实例名]=)[公共牌堆名] //从公共牌堆创建实例
-.deck set ([牌堆实例名]=)member //从群成员列表创建实例
-.deck set ([牌堆实例名]=)range [下限] [上限] //创建等差数列作为实例
-.deck list //查看牌堆实例列表
-.deck show [牌堆名] //查看剩余卡牌
-.deck reset [牌堆名] //重置剩余卡牌
+.deck set (牌堆名=)公共牌堆名 //从公共牌堆创建实例
+.deck set (牌堆名=)member //从群成员列表创建实例
+.deck set (牌堆名=)range 下限 上限 //创建等差数列作为实例
+.deck show //列出所有牌堆实例
+.deck show 牌堆名 //查看牌堆剩余卡牌
+.deck reset 牌堆名 //重置剩余卡牌
 .deck clr //清空所有实例
-.deck new [牌堆名]=[卡面1](...|[卡面n])	//自定义牌堆
+.deck new 牌堆名=[卡面1](...|[卡面n]) //自定义牌堆
 例:
-.deck new 俄罗斯轮盘=有弹|无弹|无弹|无弹|无弹|无弹
-*每个群的牌堆列表至多保存10个牌堆*
+.deck new 俄罗斯轮盘=有弹|::5::无弹
+*实例可以操作抽牌洗牌*
+*每个群至多保存10个实例*
 *使用.draw时，牌堆实例优先级高于同名公共对象*
 *从实例抽牌不会放回直到抽空*
 *除show外其他群内操作需要用户信任或管理权限*)"},
