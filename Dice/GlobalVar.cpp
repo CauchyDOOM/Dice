@@ -1,3 +1,4 @@
+# pragma warning (disable:4819)
 /*
  *  _______     ________    ________    ________    __
  * |   __  \   |__    __|  |   _____|  |   _____|  |  |
@@ -67,7 +68,7 @@ const dict_ci<string> PlainMsg
 	{"strAkShow","{self}的当前分歧:{fork} {li}"},
 	{"strAkClr","{self}已清除本轮分歧{fork}√"},
 	{"strAdminOptionEmpty","找{self}有什么事么？{nick}"},			//
-	{"strLogNew","{self}开始记录新日志{log_name}√\n请适时用.log off暂停或.log end完成记录"},
+	{"strLogNew","{self}开始新日志记录√\n请适时用.log off暂停或.log end完成记录"},
 	{"strLogOn","{self}开始日志记录√\n可使用.log off暂停记录"},
 	{"strLogOnAlready","{self}正在记录中！"},
 	{"strLogOff","{self}已暂停日志记录√\n可使用.log on恢复记录"},
@@ -75,7 +76,7 @@ const dict_ci<string> PlainMsg
 	{"strLogEnd","{self}已完成日志记录√\n正在上传日志文件{log_file}"},
 	{"strLogEndEmpty","{self}已结束记录√\n本次无日志产生"},
 	{"strLogNullErr","{self}无日志记录或已结束！"},
-	{"strLogUpSuccess","{self}已完成日志上传√\n请访问 {log_url} 以查看记录"},
+	{"strLogUpSuccess","{self}已完成日志上传√\n请访问 https://logpainter.kokona.tech/?s3={log_file} 以查看记录"},
 	{"strLogUpFailure","{self}上传日志文件失败，正在第{retry}次重传{log_file}…{ret}"},
 	{"strLogUpFailureEnd","很遗憾，{self}无法成功上传日志文件×\n{ret}\n如需获取可联系Master:{master_ID}\n文件名:{log_file}"},
 	{"strGMTableShow","{self}记录的{table_name}列表: {res}"},
@@ -449,7 +450,7 @@ const dict_ci<string> GlobalComment{
 	{"strFumble", "多轮检定大失败"},
 	{"strGlobalOff", "全局静默时对私聊指令或开启指令的回执"},
 	//
-	{"strGroupAuthorized", "!authorize+群号授权成功后在目标群的回执"},
+	{"strGroupAuthorized", "group+许可使用后在目标群的回执"},
 	{"strGroupBan", "group ban禁言群员的回执"},
 	{"strGroupCardSet", "group card修改群名片的回执"},
 	//
@@ -482,8 +483,6 @@ const dict_ci<string> GlobalComment{
 };
 const dict_ci<string> HelpDoc = {
 {"更新",R"(
-612:新增mod代理事件
-611:更新WebUI自定义回执
 610:新增mod定时事件
 609:新增mod循环事件
 608:新增.mod指令
@@ -498,13 +497,16 @@ const dict_ci<string> HelpDoc = {
 597:冷却计时器
 596:角色卡/Conf允许读写table
 595:lua可获取群名片/权限/最后发言
+594:setcoc优化
 593:reply新增触发限制
 590:lua内置http
 589:ak安科安价指令
 588:适配频道消息
+587:ww调用优化
 585:WebUI
 581:角色掷骰统计
 579:允许转义文本多选一
+576:定时任务脚本
 569:.rc/.draw暗骰暗抽
 567:敏感词检测
 566:.help查询建议
@@ -564,9 +566,9 @@ R"({help:扩展指令})"},
 Master拥有最高权限，且可以调整任意信任)"},
 {"mod",R"(模块指令.mod
 本指令限信任4使用
-`.mod list` 查看已加载mod列表
-`.mod on 模块名` 启用指定模块
-`.mod off 模块名` 停用指定模块
+.mod list 查看已加载mod列表
+.mod on 模块名 启用指定模块
+.mod off 模块名 停用指定模块
 mod按列表顺序读取内容，并从后向前覆盖)"},
 {"ak",R"(安科+安价指令.ak
 .ak#[标题]或.ak new [标题] 新建分歧并设置标题（可为空）
@@ -576,25 +578,23 @@ mod按列表顺序读取内容，并从后向前覆盖)"},
 .ak show 查看分歧选项
 .ak clr 清除本轮分歧)"},
 {"log",R"(跑团日志记录.log
-`.log new 日志名` 新建日志并开始记录
-*日志名须作为文件名合法*
-`.log on` 开始记录
-`.log off` 暂停记录
-`.log end` 完成记录并发送日志文件
-日志上传存在失败可能，届时请.send联系{self}后台管理索取)"},
+.log new 新建日志并开始记录
+.log on 开始记录
+.log off 暂停记录
+.log end 完成记录并发送日志文件
+日志上传存在失败可能，届时请联系{self}后台管理索取)"},
 {"deck",R"(牌堆实例.deck
-`.deck set (牌堆名=)公共牌堆名` //从公共牌堆创建实例
-`.deck set (牌堆名=)member` //从群成员列表创建实例
-`.deck set (牌堆名=)range 下限 上限` //创建等差数列作为实例
-`.deck show` //列出所有牌堆实例
-`.deck show 牌堆名` //查看牌堆剩余卡牌
-`.deck reset 牌堆名` //重置剩余卡牌
-`.deck clr` //清空所有实例
-`.deck new 牌堆名=[卡面1](...|[卡面n])` //自定义牌堆
+.deck set ([牌堆实例名]=)[公共牌堆名] //从公共牌堆创建实例
+.deck set ([牌堆实例名]=)member //从群成员列表创建实例
+.deck set ([牌堆实例名]=)range [下限] [上限] //创建等差数列作为实例
+.deck list //查看牌堆实例列表
+.deck show [牌堆名] //查看剩余卡牌
+.deck reset [牌堆名] //重置剩余卡牌
+.deck clr //清空所有实例
+.deck new [牌堆名]=[卡面1](...|[卡面n])	//自定义牌堆
 例:
-.deck new 俄罗斯轮盘=有弹|::5::无弹 //::张数::卡面
-*实例可以操作抽牌洗牌*
-*每个群至多保存10个实例*
+.deck new 俄罗斯轮盘=有弹|无弹|无弹|无弹|无弹|无弹
+*每个群的牌堆列表至多保存10个牌堆*
 *使用.draw时，牌堆实例优先级高于同名公共对象*
 *从实例抽牌不会放回直到抽空*
 *除show外其他群内操作需要用户信任或管理权限*)"},
@@ -628,15 +628,15 @@ Type=[回复性质](Reply/Order)
 )"},
 {"回复触发限制",R"(
 每项关键词回复可以有零或多项触发条件，只要一项不满足就不触发
-用户名单`user_id:账号列表` 指定账号触发，账号以|分隔
+用户名单 user_id:账号列表 指定账号触发，账号以|分隔
 - 反向名单：冒号后加!表示指定账号不触发
-群聊名单`grp_id:群号列表` 指定群聊触发，grp_id:0表示私聊可以触发
-概率`prob:百分比` 依概率触发
-冷却计时`cd:秒数` 非冷却状态触发，触发后计算冷却
-当日计数`today:上限` 未达上限触发，触发后计数+1
-阈值`user_var``grp_var``self_var`变量满足指定条件触发
-骰娘识别`dicemaid:only` 仅Dice!骰娘触发
-`dicemaid:off` Dice!骰娘不触发
+群聊名单 grp_id:群号列表 指定群聊触发，grp_id:0表示私聊可以触发
+概率 prob:百分比 依概率触发
+冷却计时 cd:秒数 非冷却状态触发，触发后计算冷却
+当日计数 today:上限 未达上限触发，触发后计数+1
+阈值 user_var grp_var self_var 变量满足指定条件触发
+骰娘识别 dicemaid:only 仅Dice!骰娘触发
+- dicemaid:off Dice!骰娘不触发
 )" },
 {"回复列表","{strSelfName}的回复触发词列表:{list_reply_deck}"},
 {"旁观","&ob"},
@@ -701,8 +701,8 @@ Type=[回复性质](Reply/Order)
 	{
 		"setcoc",
 		R"(为当前群或讨论组设置COC房规，如.setcoc 1,当前参数0-6
-`.setcoc show`查看当前房规
-`.setcoc clr`清除当前房规
+.setcoc show 查看当前房规
+.setcoc clr 清除当前房规
 0 规则书
 出1大成功
 不满50出96 - 100大失败，满50出100大失败
