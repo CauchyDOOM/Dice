@@ -816,9 +816,9 @@ Type=[回复性质](Reply/Order)
 .link start 开启上次关闭的链接
 .link close 关闭链接
 [转发方向]:to=转发本窗口消息到对象窗口;from=转发对象窗口消息到本窗口;with=双向转发
-[对象窗口]:群/讨论组=[群号];私聊窗口=q[uid号]
-例:.link with q1605271653 //建立双向私聊链接
-.link from 928626681 //接收目标群的消息转发
+[对象窗口]:群/讨论组需要加入group参数;私聊仅需[qq]
+例:.link with 1605271653 //建立双向私聊链接
+.link from group 928626681 //接收目标群的消息转发
 .link state 查看当前链接状态
 .link list 列出所有链接)"},
 	{ "敏感词检测","&censor" },
