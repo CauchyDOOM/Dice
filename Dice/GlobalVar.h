@@ -46,7 +46,7 @@ const unsigned short Dice_Build = 0u;
 inline const std::string Dice_Ver_Without_Build = "2.6.4StarWhisper";
 constexpr auto DiceRequestHeader = "Dice/2.6.4";
 inline const std::string Dice_Ver = Dice_Ver_Without_Build + "(" + std::to_string(Dice_Build) + ")";
-inline const std::string Dice_Short_Ver = "Dice! Made by ËÝä§&Shiki Modified by GlanceLin Ver" + Dice_Ver;
+inline const std::string Dice_Short_Ver = "Dice! Made by ËÝä§&Shiki Modified by GlanceLin Ver " + Dice_Ver;
 
 #ifdef __clang__
 
