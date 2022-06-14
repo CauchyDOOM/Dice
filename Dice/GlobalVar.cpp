@@ -516,7 +516,7 @@ const dict_ci<string> HelpDoc = {
 {"窥屏可能","无"},
 {"其他插件","【未设置】"},
 {"姐妹骰","{list_dice_sister}"},
-{"作者","Copyright (C) 2018-2021 w4123溯洄\nCopyright (C) 2019-2021 String.Empty"},
+{"作者","Copyright (C) 2018-2022 w4123溯洄\nCopyright (C) 2019-2022 String.Empty"},
 {"指令",R"(at骰娘后接指令可以指定骰娘单独响应，如at骰娘.bot off
 多数指令需要后接参数，请.help对应指令 获取详细信息，如.help jrrp
 控制指令:
@@ -624,8 +624,7 @@ Type=[回复性质](Reply/Order)
 *Type一行可省略，默认为Reply
 .reply show [触发词] 查看指定回复
 .reply list 查看全部回复
-.reply del [触发词] 清除指定回复
-)"},
+.reply del [触发词] 清除指定回复)"},
 {"回复触发限制",R"(
 每项关键词回复可以有零或多项触发条件，只要一项不满足就不触发
 用户名单 user_id:账号列表 指定账号触发，账号以|分隔
@@ -635,8 +634,7 @@ Type=[回复性质](Reply/Order)
 冷却计时 cd:秒数 非冷却状态触发，触发后计算冷却
 当日计数 today:上限 未达上限触发，触发后计数+1
 阈值 user_var grp_var self_var 变量满足指定条件触发
-骰娘识别 dicemaid:only 仅Dice!骰娘触发 dicemaid:off Dice!骰娘不触发
-)"},
+骰娘识别 dicemaid:only 仅Dice!骰娘触发 dicemaid:off Dice!骰娘不触发)"},
 {"回复列表","{strSelfName}的回复触发词列表:{list_reply_deck}"},
 {"旁观","&ob"},
 {"旁观模式","&ob"},
@@ -683,9 +681,7 @@ Type=[回复性质](Reply/Order)
 .pc build ([生成参数]:)(卡名) //根据模板填充生成属性（COC7为9项主属性）
 .pc stat //查看当前角色卡骰点统计
 .pc redo ([生成参数]:)(卡名) //清空原有属性后重新生成
-.pc clr //销毁全部角色卡记录
-)"
-	},
+.pc clr //销毁全部角色卡记录)"},
 	{"rc", "&rc/ra"},
 	{"ra", "&rc/ra"},
 	{"检定", "&rc/ra"},
