@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build-windows:
     env:
-      BUILD_TYPE: Release
+      BUILD_TYPE: Debug
       VCPKG_BINARY_SOURCES: 'clear;nuget,GitHub,readwrite'
     strategy:
       fail-fast: false
