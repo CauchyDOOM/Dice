@@ -12,11 +12,11 @@ jobs:
       matrix:
         include:
         - type: Win32
-          triplet: x86-mingw-static
+          triplet: x86-windows-v120
           mono: ''
           dll_sfx: windows.i386
         - type: x64
-          triplet: x64-mingw-static
+          triplet: x64-windows-static-md
           mono: ''
           dll_sfx: windows.amd64
           
