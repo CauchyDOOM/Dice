@@ -21,7 +21,7 @@ AttrVar idx_at(AttrObject& eve) {
 	if (eve.has("at"))return eve["at"];
 	if (!eve.has("uid"))return {};
 	return eve["at"] = eve.has("gid")
-		? "[CQ:at,qq=" + eve.get_str("uid") + "]"
+		? AttrVar("[CQ:at,qq=" + eve.get_str("uid") + "]")
 		: idx_nick(eve);
 }
 AttrVar idx_gAuth(AttrObject& eve) {
@@ -592,92 +592,6 @@ int DiceEvent::AdminEvent(const string& strOption){
 		}
 		return 1;
 	}
-	if (strOption == "recorder")
-	{
-		bool boolErase = false;
-		readSkipSpace();
-		if (strMsg[intMsgCnt] == '-')
-		{
-			boolErase = true;
-			intMsgCnt++;
-		}
-		if (strMsg[intMsgCnt] == '+') { intMsgCnt++; }
-		chatInfo cTarget;
-		if (readChat(cTarget))
-		{
-			ResList list = console.listNotice();
-			reply("当前通知窗口" + to_string(list.size()) + "个：" + list.show());
-			return 1;
-		}
-		if (boolErase)
-		{
-			if (console.showNotice(cTarget) & 0b1)
-			{
-				note("已停止发送" + printChat(cTarget) + "√", 0b1);
-				console.redNotice(cTarget, 0b1);
-			}
-			else
-			{
-				reply("该窗口不接受日志通知！");
-			}
-		}
-		else
-		{
-			if (console.showNotice(cTarget) & 0b1)
-			{
-				reply("该窗口已接收日志通知！");
-			}
-			else
-			{
-				console.addNotice(cTarget, 0b11011);
-				reply("已添加日志窗口" + printChat(cTarget) + "√");
-			}
-		}
-		return 1;
-	}
-	if (strOption == "monitor")
-	{
-		bool boolErase = false;
-		readSkipSpace();
-		if (strMsg[intMsgCnt] == '-')
-		{
-			boolErase = true;
-			intMsgCnt++;
-		}
-		if (strMsg[intMsgCnt] == '+') { intMsgCnt++; }
-		chatInfo cTarget;
-		if (readChat(cTarget))
-		{
-			ResList list = console.listNotice();
-			reply("当前通知窗口" + to_string(list.size()) + "个：" + list.show());
-			return 1;
-		}
-		if (boolErase)
-		{
-			if (console.showNotice(cTarget) & 0b100000)
-			{
-				console.redNotice(cTarget, 0b100000);
-				note("已移除监视窗口" + printChat(cTarget) + "√", 0b1);
-			}
-			else
-			{
-				reply("该窗口不存在于监视列表！");
-			}
-		}
-		else
-		{
-			if (console.showNotice(cTarget) & 0b100000)
-			{
-				reply("该窗口已存在于监视列表！");
-			}
-			else
-			{
-				console.addNotice(cTarget, 0b100000);
-				note("已添加监视窗口" + printChat(cTarget) + "√", 0b1);
-			}
-		}
-		return 1;
-	}
 	if (strOption == "blackfriend")
 	{
 		ResList res;
@@ -911,7 +825,7 @@ int DiceEvent::AdminEvent(const string& strOption){
 			while ((llTargetID = readID()));
 			return 1;
 		}
-		else replyMsg("strAdminOptionEmpty");
+		else replyMsg("strSummonEmpty");
 		return 0;
 	}
 }
@@ -2499,7 +2413,8 @@ int DiceEvent::InnerOrder() {
 					replyMsg("strSendMsgEmpty");
 				}
 				else {
-					AddMsgToQueue(strFwd, ct);
+					AddMsgToQueue(fmt->format(strFwd, ct.gid ?
+						AttrVars{ {"gid",ct.gid}} : AttrVars{ {"uid",ct.uid} }), ct);
 					replyMsg("strSendMsg");
 				}
 				return 1;
@@ -3056,11 +2971,7 @@ int DiceEvent::InnerOrder() {
 				return 1;
 			}
 			const long long llGroupID = stoll(strGroupID);
-			if (groupset(llGroupID, "停用指令") && trusted < 4) {
-				replyMsg("strDisabledErr");
-				return 1;
-			}
-			if (groupset(llGroupID, "禁用me") && trusted < 5) {
+			if ((groupset(llGroupID, "停用指令") || groupset(llGroupID, "禁用me")) && trusted < 5) {
 				replyMsg("strMEDisabledErr");
 				return 1;
 			}
@@ -3508,14 +3419,12 @@ int DiceEvent::InnerOrder() {
 		bool isAutomatic = false;
 		//D100且有角色卡时计入统计
 		bool isStatic = PList.count(fromChat.uid);
+		CharaCard* pc{ isStatic ? &PList[fromChat.uid][fromChat.gid] : nullptr };
 		if ((strLowerMessage[intMsgCnt] == 'p' || strLowerMessage[intMsgCnt] == 'b') && strLowerMessage[intMsgCnt - 1] != ' ') {
 			isStatic = false;
 			strMainDice = strLowerMessage[intMsgCnt];
-			intMsgCnt++;
-			while (isdigit(static_cast<unsigned char>(strLowerMessage[intMsgCnt]))) {
-				strMainDice += strLowerMessage[intMsgCnt];
-				intMsgCnt++;
-			}
+			++intMsgCnt;
+			strMainDice += readDigit(false);
 		}
 		readSkipSpace();
 		if (strMsg[intMsgCnt] == '_') {
@@ -3523,10 +3432,10 @@ int DiceEvent::InnerOrder() {
 			++intMsgCnt;
 		}
 		if (strMsg.length() == intMsgCnt) {
-			replyHelp("strUnknownPropErr");
+			replyMsg("strUnknownPropErr");
 			return 1;
 		}
-		string attr{ strMsg.substr(intMsgCnt) };
+		string& attr{ (at("attr") = readAttrName()).text };
 		if (attr.find("自动成功") == 0) {
 			strDifficulty = attr.substr(0, 8);
 			attr = attr.substr(8);
@@ -3537,17 +3446,15 @@ int DiceEvent::InnerOrder() {
 			intDifficulty = (attr.substr(0, 4) == "困难") ? 2 : 5;
 			attr = attr.substr(4);
 		}
-		CharaCard* pc{ isStatic ? &PList[fromChat.uid][fromChat.gid] : nullptr };
-		if (pc && pc->available(attr)) {
-			intMsgCnt = strMsg.length();
+		if (pc) {
 			attr = pc->standard(attr);
 		}
 		else {
-			if (SkillNameReplace.count(attr = readAttrName()))attr = SkillNameReplace[attr];
+			if (SkillNameReplace.count(attr))attr = SkillNameReplace[attr];
 		}
-		set("attr", attr);
+		DD::debugLog("attr:" + get_str("attr"));
 		if (strLowerMessage[intMsgCnt] == '*' && isdigit(strLowerMessage[intMsgCnt + 1])) {
-			intMsgCnt++;
+			++intMsgCnt;
 			readNum(intSkillMultiple);
 		}
 		while ((strLowerMessage[intMsgCnt] == '+' || strLowerMessage[intMsgCnt] == '-') && isdigit(
@@ -3563,15 +3470,13 @@ int DiceEvent::InnerOrder() {
 			}
 		}
 		while (isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])) || strLowerMessage[intMsgCnt] == '=' ||
-			   strLowerMessage[intMsgCnt] ==
-			   ':')
-			intMsgCnt++;
-		string strSkillVal = readDigit();
+			   strLowerMessage[intMsgCnt] == ':') intMsgCnt++;
+		string strSkillVal = readDigit(false);
 		set("reason",readRest());
 		int intSkillVal;
 		if (strSkillVal.empty()) {
 			if (pc && pc->available(attr)) {
-				intSkillVal = PList[fromChat.uid][fromChat.gid].call(attr);
+				intSkillVal = pc->call(attr);
 			}
 			else {
 				if (!pc && SkillNameReplace.count(attr)) {
