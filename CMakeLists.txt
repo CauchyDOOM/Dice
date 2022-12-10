@@ -10,8 +10,11 @@ include_directories(Dice QQAPI)
 
 aux_source_directory(Dice Dice_SRC)
 aux_source_directory(QQAPI QQAPI_SRC)
-
-add_library(w4123.Dice SHARED ${Dice_SRC} ${QQAPI_SRC})
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_library(w4123.Dice SHARED ${Dice_SRC} ${QQAPI_SRC} Dice/Resource.rc)
+else()
+    add_library(w4123.Dice SHARED ${Dice_SRC} ${QQAPI_SRC})
+endif()
 
 set_property(TARGET w4123.Dice PROPERTY CXX_STANDARD 17)
 set_property(TARGET w4123.Dice PROPERTY CXX_STANDARD_REQUIRED ON)
