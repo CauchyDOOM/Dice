@@ -495,6 +495,8 @@ const dict_ci<string> GlobalComment{
 };
 const dict_ci<> HelpDoc = {
 {"更新",R"(
+637:模块资源远程访问
+636:支持toml读写
 635:webui可自定义化
 634:转义优化，支持变量赋值
 633:format新增wait，花括号嵌套优化
