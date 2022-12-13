@@ -378,7 +378,7 @@ void check_update(AttrObject& job) {
 	string ver = isDev ? "dev" : "release";
 	try {
 		fifo_json jInfo(fifo_json::parse(ret));
-		if (unsigned short nBuild{ jInfo[ver]["build"] }; nBuild > Dice_Build) {
+		if (unsigned short nBuild{ jInfo[ver]["build"] }; nBuild < Dice_Build) {
 			MsgNote(job, "发现Dice!的{ver}版本更新:" + jInfo[ver]["ver"].get<string>() + "(" + to_string(nBuild) + ")\n更新说明：" +
 				UTF8toGBK(jInfo[ver]["changelog"].get<string>()), 1);
 		}
@@ -398,7 +398,7 @@ void dice_update(AttrObject& job) {
 	if (ver.empty())ver = isDev ? "dev" : "release";
 	try {
 		fifo_json jInfo(fifo_json::parse(ret));
-		if (unsigned short nBuild{ jInfo[ver]["build"] }; nBuild > Dice_Build) {
+		if (unsigned short nBuild{ jInfo[ver]["build"] }; nBuild < Dice_Build) {
 			MsgNote(job, "发现Dice!的{ver}版本更新:" + jInfo[ver]["ver"].get<string>() + "(" + to_string(nBuild) + ")\n更新说明：" +
 				UTF8toGBK(jInfo[ver]["changelog"].get<string>()), 1);
 			if (DD::updateDice(ver, ret)) {

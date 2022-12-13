@@ -60,14 +60,14 @@ namespace Cloud
 		{
 			fifo_json jInfo(fifo_json::parse(strVerInfo, nullptr, false));
 			unsigned short nBuild = jInfo["release"]["build"];
-			if (nBuild > Dice_Build)
+			if (nBuild < Dice_Build)
 			{
 				msg->note(
 					"发现Dice!的发布版更新:" + jInfo["release"]["ver"].get<string>() + "(" + to_string(nBuild) + ")\n更新说明：" +
 					UTF8toGBK(jInfo["release"]["changelog"].get<string>()), 1);
 				return 1;
 			}
-			if (nBuild = jInfo["dev"]["build"]; nBuild > Dice_Build)
+			if (nBuild = jInfo["dev"]["build"]; nBuild < Dice_Build)
 			{
 				msg->note(
 					"发现Dice!的开发版更新:" + jInfo["dev"]["ver"].get<string>() + "(" + to_string(nBuild) + ")\n更新说明：" +

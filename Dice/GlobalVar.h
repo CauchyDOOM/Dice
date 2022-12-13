@@ -42,11 +42,11 @@
  * 请勿修改Dice_Build, Dice_Ver_Without_Build，DiceRequestHeader以及Dice_Ver常量
  * 请修改Dice_Short_Ver或Dice_Full_Ver常量以达到版本自定义
  */
-constexpr unsigned short Dice_Build = 637u;
-inline const std::string Dice_Ver_Without_Build = "2.6.6beta3";
+constexpr unsigned short Dice_Build = 0u;
+inline const std::string Dice_Ver_Without_Build = "2.6.6StarWhisper";
 constexpr auto DiceRequestHeader = "Dice/2.6.6";
 inline const std::string Dice_Ver = Dice_Ver_Without_Build + "(" + std::to_string(Dice_Build) + ")";
-inline const std::string Dice_Short_Ver = "Dice! by 溯洄 & Shiki Ver " + Dice_Ver;
+inline const std::string Dice_Short_Ver = "Glance Made by GlanceLin Ver 22.12alpha\r\nEPK Made by Mepk Ver 3.3.5\r\nDice! Made by 溯洄&Shiki Modified by GlanceLin Ver " + Dice_Ver;
 constexpr bool isDev = true;
 
 #ifdef __clang__
@@ -62,8 +62,9 @@ inline const std::string Dice_Full_Ver = Dice_Short_Ver + " [CLANG " + std::to_s
 #else
 
 #ifdef _MSC_VER
-inline const std::string Dice_Full_Ver = std::string(Dice_Short_Ver) + "[MSVC " + std::to_string(_MSC_VER) + " " + __DATE__ +
-	" " + __TIME__ + "]";
+//inline const std::string Dice_Full_Ver = std::string(Dice_Short_Ver) + "[MSVC " + std::to_string(_MSC_VER) + " " + __DATE__ +
+//	" " + __TIME__ + "]";
+inline const std::string Dice_Full_Ver = std::string(Dice_Short_Ver) + "[MinGW " + __DATE__ + " " + __TIME__ + "]";
 #elif defined(__GNUC__)
 inline const std::string Dice_Full_Ver = Dice_Short_Ver + " [GNUC " + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." + std::to_string(__GNUC_PATCHLEVEL__) + " " + __DATE__ + " " + __TIME__;
 #else
