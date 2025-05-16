@@ -1,197 +1,212 @@
-#pragma once
-
 /*
- * ÕÊº“»ÀŒÔø®
- * Copyright (C) 2019-2022 String.Empty
+ *  _______     ________    ________    ________    __
+ * |   __  \   |__    __|  |   _____|  |   _____|  |  |
+ * |  |  |  |     |  |     |  |        |  |_____   |  |
+ * |  |  |  |     |  |     |  |        |   _____|  |__|
+ * |  |__|  |   __|  |__   |  |_____   |  |_____    __
+ * |_______/   |________|  |________|  |________|  |__|
+ *
+ * Dice! QQ Dice Robot for TRPG
+ * Player & Character Card
+ * Copyright (C) 2018-2021 w4123Ê∫ØÊ¥Ñ
+ * Copyright (C) 2019-2024 String.Empty
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms
+ * of the GNU Affero General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License along with this
+ * program. If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include <fstream>
-#include <string>
+#pragma once
 #include <utility>
-#include <vector>
-#include <map>
 #include <stack>
 #include <mutex>
 #include "CQTools.h"
 #include "RDConstant.h"
 #include "RD.h"
-#include "DiceXMLTree.h"
+#include "tinyxml2.h"
 #include "DiceFile.hpp"
 #include "ManagerSystem.h"
 #include "MsgFormat.h"
 #include "CardDeck.h"
 #include "DiceEvent.h"
-#include "DiceAttrVar.h"
+#include "DiceJS.h"
 
 using std::string;
 using std::to_string;
 using std::vector;
 using std::map;
+using xml = tinyxml2::XMLDocument;
+class CharaCard;
+class CardTemp;
 
-constexpr short NOT_FOUND = -32767;
-
-inline unordered_map<string, short> mTempletTag = {
-	{"name", 1},
-	{"type", 2},
-	{"alias", 20},
-	{"basic", 31},
-	{"info", 102},
-	{"autofill", 22},
-	{"variable", 23},
-	{"diceexp", 21},
-	{"default", 12},
-	{"build", 41},
-	{"generate", 24},
-	{"note", 101},
-};
+enum class trigger_time { AfterUpdate };
 inline unordered_map<string, short> mCardTag = {
-	{"Name", 1},
+	{"Name", 1},	//older
+	{"Tag", 4},
 	{"Type", 2},
-	{"Attrs", 3},
-	{"Attr", 11},	//older
+	{"Attrs", 3},	//older
+	{"Lock", 103},
+	{"Attr", 11},
 	{"DiceExp", 21},
 	{"Note", 101},	//older
 	{"Info", 102},	//older
 	{"End", 255}
 };
 
-//…˙≥…ƒ£∞Â
-class CardBuild
-{
+class AttrShape {
 public:
-	CardBuild() = default;
+	enum class DataType : unsigned char { Any, Nature, Int, };
+	enum class TextType : unsigned char { Plain, Dicexp, JavaScript, };
+	AttrShape() = default;
+	AttrShape(const tinyxml2::XMLElement* node);
+	AttrShape(int i) :defVal(i) {}
+	AttrShape(const string& s):defVal(s){}
+	AttrShape(const string& s, TextType tt) :defVal(s), textType(tt){}
+	DataType type{ DataType::Any };
+	//string title;
+	vector<string> alias;
+	TextType textType{ TextType::Plain };
+	AttrVar defVal;
+	AttrVar init(ptr<CardTemp>, CharaCard*) const; 
+	int check(AttrVar& val);
+	bool equalDefault(const AttrVar& val)const { return TextType::Plain == textType && val == defVal; }
+};
+using Shapes = dict_ci<AttrShape>;
 
-	CardBuild(const vector<std::pair<string, string>>& attr, const vector<string>& name, const vector<string>& note):
-		vBuildList(attr), vNameList(name), vNoteList(note)
-	{
-	}
-
-	// Ù–‘…˙≥…
-	vector<std::pair<string, string>> vBuildList = {};
-	//ÀÊª˙–’√˚
-	vector<string> vNameList = {};
-	//Note…˙≥…
-	vector<string> vNoteList = {};
-
-	CardBuild(const DDOM& d)
-	{
-		for (const auto& sub : d.vChild)
-		{
-			switch (mTempletTag[sub.tag])
-			{
-			case 1:
-				vNameList = getLines(sub.strValue);
-				break;
-			case 24:
-				readini(sub.strValue, vBuildList);
-				break;
-			case 101:
-				vNoteList = getLines(sub.strValue);
-				break;
-			default: break;
-			}
+class CardPreset {
+public:
+	fifo_dict_ci<AttrShape> shapes;
+	CardPreset() = default;
+	CardPreset(const std::vector<std::pair<std::string, std::string>>& v) {
+		for (auto& [key, val] : v) {
+			shapes[key] = { val, AttrShape::TextType::Dicexp };
 		}
 	}
+	CardPreset(const tinyxml2::XMLElement* d);
 };
-
+struct CardTrigger {
+	string name;
+	trigger_time time;
+	string script;
+};
 class CardTemp
 {
 public:
 	string type;
-	fifo_dict_ci<> replaceName = {};
-	//◊˜≥… ±…˙≥…
+	//alias of model
+	vector<string> alias;
+	//alias of attr
+	dict_ci<> replaceName = {};
+	//‰ΩúÊàêÊó∂ÁîüÊàê
 	vector<vector<string>> vBasicList = {};
-	//µ˜”√ ±…˙≥…
-	fifo_dict_ci<> mAutoFill = {};
-	//∂ØÃ¨“˝”√
-	fifo_dict_ci<> mVariable = {};
-	//±Ì¥Ô Ω
-	fifo_dict_ci<> mExpression = {};
-	//ƒ¨»œ÷µ
-	fifo_dict_ci<int> defaultSkill = {};
-	//…˙≥…≤Œ ˝
-	fifo_dict_ci<CardBuild> mBuildOption = {};
+	//ÂÖÉË°®
+	dict_ci<AttrShape> AttrShapes;
+	//ÁîüÊàêÂèÇÊï∞
+	dict_ci<CardPreset> presets = {};
+	//
+	ptr<js_context> js_ctx;
+	string script;
+	multimap<trigger_time, CardTrigger> triggers_by_time;
+	fifo_dict_ci<CardTrigger> triggers;
 	CardTemp() = default;
 
-	CardTemp(const string& type, const fifo_dict_ci<>& replace, vector<vector<string>> basic,
-		const fifo_dict_ci<>& autofill, const fifo_dict_ci<>& dynamic, const fifo_dict_ci<>& exp,
-		const fifo_dict_ci<int>& skill, const fifo_dict_ci<CardBuild>& option) : type(type),
-			                                                            replaceName(replace), 
-		                                                                vBasicList(basic), 
-		                                                                mAutoFill(autofill), 
-		                                                                mVariable(dynamic), 
-		                                                                mExpression(exp), 
-		                                                                defaultSkill(skill), 
-		                                                                mBuildOption(option)
+	CardTemp(const string& type, const dict_ci<>& replace, vector<vector<string>> basic,
+		const dict_ci<>& dynamic, const dict_ci<>& exps,
+		const dict_ci<int>& def_skill, const dict_ci<CardPreset>& option = {},
+		const string& s = {}) : type(type), replaceName(replace), vBasicList(basic), presets(option), script(s)
 	{
+		for (auto& [attr, exp] : dynamic) {
+			AttrShapes[attr] = AttrShape(exp, AttrShape::TextType::Dicexp);
+		}
+		for (auto& [attr, exp] : exps) {
+			AttrShapes["&" + attr] = AttrShape(exp, AttrShape::TextType::Plain);
+		}
+		for (auto& [attr, val] : def_skill) {
+			AttrShapes[attr] = val;
+		}
 	}
+	CardTemp& merge(const CardTemp& other);
+	void init();
+	void after_update(const ptr<AnysTable>&) const;
+	bool equalDefault(const string& attr, const AttrVar& val)const { return AttrShapes.count(attr) && AttrShapes.at(attr).equalDefault(val); }
 
-	CardTemp(const DDOM& d)
-	{
-		readt(d);
+	//CardTemp(const xml* d) { }
+
+	bool canGet(const string& attr)const {
+		return AttrShapes.count(attr) && !AttrShapes.at(attr).defVal.is_null();
 	}
-
-	void readt(const DDOM& d);
-
-	string getName()
-	{
-		return type;
-	}
+	string getName() const { return type; }
 
 	string showItem()
 	{
-		const string strItem = listKey(mBuildOption);
+		const string strItem = listKey(presets);
 		if (strItem.empty())return type;
 		return type + "[" + strItem + "]";
 	}
 	string show();
-};
+}; 
+extern CardTemp ModelBRP;
+extern CardTemp ModelCOC7;
+extern dict_ci<ptr<CardTemp>> CardModels;
+int loadCardTemp(const std::filesystem::path& fpPath, dict_ci<CardTemp>& m);
 
-// ”…”⁄“¿¿µ”⁄∆‰À˚»´æ÷±‰¡ø£¨Œ™¡À±‹√‚»´æ÷±‰¡ø≥ı ºªØÀ≥–Ú≥ÂÕª£¨’‚∏ˆ±‰¡øª·‘⁄eventEnable÷–±ª≥ı ºªØ
+extern unordered_map<int, string> PlayerErrors;
 
 struct lua_State;
-class CharaCard
+class CharaCard: public AnysTable
 {
 private:
-	string Name = "Ω«…´ø®";
+	const unsigned short id = 0;
+	string Name = "ËßíËâ≤Âç°";
+	unordered_set<string> locks;
 	std::mutex cardMutex;
 public:
-	static fifo_dict_ci<CardTemp> mCardTemplet;
-	CardTemp& getTemplet()const;
+	unsigned short getID()const { return id; }
+	MetaType getType()const override{ return MetaType::Actor; }
+	ptr<CardTemp> getTemplet()const;
+	bool locked(const string& key)const { return locks.count(key); }
+	bool lock(const string& key) {
+		std::lock_guard<std::mutex> lock_queue(cardMutex);
+		if (key.empty() || locks.count(key))return false;
+		locks.insert(key);
+		return true;
+	}
+	bool unlock(const string& key) {
+		std::lock_guard<std::mutex> lock_queue(cardMutex);
+		if (key.empty() || !locks.count(key))return false;
+		locks.erase(key);
+		return true;
+	}
 	const string& getName()const { return Name; }
+	string print()const override{ return Name; }
 	void setName(const string&);
 	void setType(const string&);
 	void update();
-	//string Type = "COC7";
-	AttrObject Attr{ {
-		{"__Type",AttrVar("COC7")},
-		{"__Update",AttrVar((long long)time(nullptr))},
-	} };
-	//map<string, string, less_ci> Info{  };
-	//map<string, string, less_ci> DiceExp{};
-
-	CharaCard() = default;
-	CharaCard(const CharaCard& pc){
-		Name = pc.Name;
-		Attr = pc.Attr;
+	CharaCard(size_t i) :id(i) {
+		dict["__Name"] = Name = to_string(id);
+		setType("COC7");
+		dict["__Update"] = (long long)time(nullptr);
 	}
-	CharaCard& operator=(const CharaCard& pc)
-	{
-		Name = pc.Name;
-		Attr = pc.Attr;
-		return *this;
+	CharaCard(const CharaCard& pc) :id(pc.id), Name(pc.Name) {
+		dict = pc.dict;
 	}
 
-	CharaCard(const string& name, const string& type = "COC7") : Name(name)
+	CharaCard(const string& name, size_t i, const string& type = "COC7") : Name(name), id(i)
 	{
-		Attr["__Name"] = name;
+		dict["__Name"] = name;
 		setType(type);
 	}
 
-	int call(string key)const;
+	//int call(string key)const;
 
-	//±Ì¥Ô Ω◊™“Â
-	string escape(string exp, const set<string>& sRef)
+	//Ë°®ËææÂºèËΩ¨‰πâ
+	string escape(string exp, const unordered_set<string>& sRef)
 	{
 		if (exp[0] == '&')
 		{
@@ -199,8 +214,8 @@ public:
 			if (sRef.count(key))return "";
 			return getExp(key);
 		}
-		int intCnt = 0, lp, rp;
-		while ((lp = exp.find('[', intCnt)) != std::string::npos && (rp = exp.find(']', lp)) != std::string::npos)
+		size_t intCnt = 0, lp, rp;
+		while ((lp = exp.find('{', intCnt)) != std::string::npos && (rp = exp.find('}', lp)) != std::string::npos)
 		{
 			string strProp = exp.substr(lp + 1, rp - lp - 1);
 			if (sRef.count(strProp))return "";
@@ -211,132 +226,77 @@ public:
 		return exp;
 	}
 
-	//«Ûkey∂‘”¶÷¿˜ª±Ì¥Ô Ω
-	string getExp(string& key, set<string> sRef = {});
+	//Ê±ÇkeyÂØπÂ∫îÊé∑È™∞Ë°®ËææÂºè
+	string getExp(string& key, unordered_set<string> sRef = {});
 
-	bool countExp(const string& key)
-	{
-		return (Attr.has(key) && Attr.at(key).type == AttrVar::AttrType::Text)
-			|| (Attr.has("&" + key))
-			|| getTemplet().mExpression.count(key);
-	}
+	bool countExp(const string& key)const;
 
-	//º∆À„±Ì¥Ô Ω
-	int cal(string exp)const
-	{
-		if (exp[0] == '&')
-		{
-			string key = exp.substr(1);
-			return call(key);
-		}
-		int intCnt = 0, lp, rp;
-		while ((lp = exp.find('[', intCnt)) != std::string::npos && (rp = exp.find(']', lp)) != std::string::npos)
-		{
-			string strProp = exp.substr(lp + 1, rp - lp - 1);
-			const short val = call(strProp);
-			exp.replace(exp.begin() + lp, exp.begin() + rp + 1, std::to_string(val));
-			intCnt = lp + std::to_string(val).length();
-		}
-		const RD Res(exp);
-		Res.Roll();
-		return Res.intTotal;
-	}
+	//ËÆ°ÁÆóË°®ËææÂºè
+	std::optional<int> cal(string exp);
 
-	void build(const string& para = "")
-	{
-		const auto it = getTemplet().mBuildOption.find(para);
-		if (it == getTemplet().mBuildOption.end())return;
-		CardBuild build = it->second;
-		for (auto& it2 : build.vBuildList) {
-			//exp
-			if (it2.first[0] == '&')
-			{
-				if (Attr.has(it2.first))continue;
-				Attr.set(it2.first, it2.second);
-			}
-				//attr
-			else
-			{
-				if (Attr.has(it2.first))continue;
-				Attr.set(it2.first, cal(it2.second));
-			}
-		}
-	}
+	void build(const string& para);
 
-	//Ω‚Œˆ…˙≥…≤Œ ˝
+	//Ëß£ÊûêÁîüÊàêÂèÇÊï∞
 	void buildv(string para = "");
 
-	[[nodiscard]] string standard(const string& key) const
-	{
-		if (getTemplet().replaceName.count(key))return getTemplet().replaceName.find(key)->second;
-		return key;
-	}
+	[[nodiscard]] string standard(const string& key) const;
 
-	AttrVar get(string key)const;
+	AttrVar get(const string& key, const AttrVar& val = {})const override;
 
 	int set(string key, const AttrVar& val);
 
-	bool erase(string& key, bool isExp = false);
+	bool erase(string& key);
 	void clear();
 
-	int show(string key, string& val) const;
+	[[nodiscard]] std::optional<string> show(string& key);
+	[[nodiscard]] std::optional<string> show(const string& key);
+	string print(const string& key);
 
-	[[nodiscard]] string show(bool isWhole) const;
+	[[nodiscard]] string show(bool isWhole);
 
+	bool has(const string& key)const override;
 	//can get attr by card or temp
-	bool available(const string& key) const;
+	//bool available(const string& key) const;
 
-	bool stored(string& key) const
-	{
-		key = standard(key);
-		return Attr.has(key) || getTemplet().mAutoFill.count(key) || getTemplet().defaultSkill.count(key);
-	}
+	bool hasAttr(string& key) const;
 
 	void cntRollStat(int die, int face);
 
 	void cntRcStat(int die, int rate);
 
-	void operator<<(const CharaCard& card)
-	{
-		const string name = Name;
-		*this = card;
-		Attr["__Name"] = Name = name;
+	void operator<<(const CharaCard& card){
+		dict = card.dict;
+		dict["__Name"] = Name;
 	}
 
 	void writeb(std::ofstream& fout) const;
 
 	void readb(std::ifstream& fin);
-
-	void toCard(lua_State*);
 };
+using PC = std::shared_ptr<CharaCard>;
 
 class Player
 {
 private:
 	short indexMax = 0;
-	map<unsigned short, CharaCard> mCardList;
-	map<string, unsigned short> mNameIndex;
-	map<unsigned long long, unsigned short> mGroupIndex{{0, 0}};
-	// »ÀŒÔø®ª•≥‚
-	std::mutex cardMutex;
+	map<unsigned short, PC> mCardList;
+	dict_ci<PC> NameList;
+	unordered_map<unsigned long long, PC> mGroupCard;
+	// ‰∫∫Áâ©Âç°‰∫íÊñ•
+	mutable std::mutex cardMutex;
 public:
-	Player() {
-		mCardList[0] = { "Ω«…´ø®" };
-	}
+	Player();
 
-	Player(const Player& pl)
-	{
-		*this = pl;
-	}
+	Player(const Player& pl);
 
-	Player& operator=(const Player& pl)
+	/*Player& operator=(const Player& pl)
 	{
 		indexMax = pl.indexMax;
 		mCardList = pl.mCardList;
-		mNameIndex = pl.mNameIndex;
-		mGroupIndex = pl.mGroupIndex;
+		NameList = pl.NameList;
+		mGroupCard = pl.mGroupCard;
 		return *this;
-	}
+	}*/
 
 	[[nodiscard]] size_t size() const
 	{
@@ -345,202 +305,56 @@ public:
 
 	[[nodiscard]] bool count(long long group) const
 	{
-		return mGroupIndex.count(group);
+		return mGroupCard.count(group);
 	}
 
 	[[nodiscard]] bool count(const string& name) const
 	{
-		return mNameIndex.count(name);
+		return NameList.count(name);
 	}
 
-	int newCard(string& s, long long group = 0)
-	{
-		std::lock_guard<std::mutex> lock_queue(cardMutex);
-		//»ÀŒÔø® ˝¡ø…œœﬁ
-		if (mCardList.size() > 16)return -1;
-		string type = "COC7";
-		s = strip(s);
-		std::stack<string> vOption;
-		int Cnt = s.rfind(':');
-		if (Cnt != string::npos)
-		{
-			type = s.substr(0, Cnt);
-			s.erase(s.begin(), s.begin() + Cnt + 1);
-			if (type == "COC")type = "COC7";
-		}
-		else if (CharaCard::mCardTemplet.count(s))
-		{
-			type = s;
-			s.clear();
-		}
-		while ((Cnt = type.rfind(':')) != string::npos)
-		{
-			vOption.push(type.substr(Cnt + 1));
-			type.erase(type.begin() + Cnt, type.end());
-		}
-		//Œﬁ–ßƒ£∞Â≤ª‘Ÿ±®¥Ì
-		//if (!getmCardTemplet().count(type))return -2;
-		if (mNameIndex.count(s))return -4;
-		if (s.find("=") != string::npos)return -6;
-		mCardList.emplace(++indexMax, CharaCard{ s, type });
-		CharaCard& card = mCardList[indexMax];
-		// CardTemp& temp = mCardTemplet[type];
-		while (!vOption.empty())
-		{
-			string para = vOption.top();
-			vOption.pop();
-			card.build(para);
-			if (card.getName().empty())
-			{
-				std::vector<string> list = CharaCard::mCardTemplet[type].mBuildOption[para].vNameList;
-				while (!list.empty())
-				{
-					s = CardDeck::draw(list[0]);
-					if (mNameIndex.count(s))list.erase(list.begin());
-					else
-					{
-						card.setName(s);
-						break;
-					}
-				}
-			}
-		}
-		if (card.getName().empty())
-		{
-			std::vector<string> list = CharaCard::mCardTemplet[type].mBuildOption["_default"].vNameList;
-			while (!list.empty())
-			{
-				s = CardDeck::draw(list[0]);
-				if (mNameIndex.count(s))list.erase(list.begin());
-				else
-				{
-					card.setName(s);
-					break;
-				}
-			}
-			if (card.getName().empty())card.setName(to_string(indexMax + 1));
-		}
-		s = card.getName();
-		mNameIndex[s] = indexMax;
-		mGroupIndex[group] = indexMax;
-		return 0;
-	}
+	int emptyCard(const string& s, long long group, const string& type);
+	int newCard(string& s, long long group = 0, string type = "COC7");
 
-	int buildCard(string& name, bool isClear, long long group = 0)
-	{
-		string strName = name;
-		string strType;
-		if (name.find(":") != string::npos)
-		{
-			strName = strip(name.substr(name.rfind(":") + 1));
-			strType = name.substr(0, name.rfind(":"));
-		}
-		//≤ª¥Ê‘⁄‘Ú–¬Ω®»ÀŒÔø®
-		if (!strName.empty() && !mNameIndex.count(strName))
-		{
-			if (const int res = newCard(name, group))return res;
-			name = getCard(strName, group).getName();
-			(*this)[name].buildv();
-		}
-		else
-		{
-			name = getCard(strName, group).getName();
-			if (isClear)(*this)[name].clear();
-			(*this)[name].buildv(strType);
-		}
-		return 0;
-	}
+	int buildCard(string& name, bool isClear, long long group = 0);
 
-	int changeCard(const string& name, long long group)
-	{
-		if (name.empty())
-		{
-			mGroupIndex.erase(group);
-			return 1;
-		}
-		if (!mNameIndex.count(name))return -5;
-		mGroupIndex[group] = mNameIndex[name];
-		return 0;
-	}
+	int changeCard(const string& name, long long group);
 
-	int removeCard(const string& name)
-	{
-		std::lock_guard<std::mutex> lock_queue(cardMutex);
-		if (!mNameIndex.count(name))return -5;
-		if (!mNameIndex[name])return -7;
-		auto it = mGroupIndex.cbegin();
-		while (it != mGroupIndex.cend())
-		{
-			if (it->second == mNameIndex[name])
-			{
-				it = mGroupIndex.erase(it);
-			}
-			else
-			{
-				++it;
-			}
-		}
-		mCardList.erase(mNameIndex[name]);
-		while (!mCardList.count(indexMax))indexMax--;
-		mNameIndex.erase(name);
-		return 0;
-	}
+	int removeCard(const string& name);
 
-	int renameCard(const string& name, const string& name_new);
+	int renameCard(PC pc, const string& name_new);
 
-	int copyCard(const string& name1, const string& name2, long long group = 0)
-	{
-		if (name1.empty() || name2.empty())return -3;
-		//≤ª¥Ê‘⁄‘Ú–¬Ω®»ÀŒÔø®
-		if (!mNameIndex.count(name1))
-		{
-			std::lock_guard<std::mutex> lock_queue(cardMutex);
-			//»ÀŒÔø® ˝¡ø…œœﬁ
-			if (mCardList.size() > 16)return -1;
-			if (name1.find(":") != string::npos)return -6;
-			mCardList[++indexMax].setName(name1);
-			mNameIndex[name1] = indexMax;
-		}
-		(*this)[name1] << (*this)[name2];
-		return 0;
-	}
+	int copyCard(const string& name1, const string& name2, long long group = 0);
 
-	string listCard();
+	string listCard() const;
 
 	string listMap()
 	{
 		ResList Res;
-		for (const auto& it : mGroupIndex)
+		for (const auto& [gid,pc] : mGroupCard)
 		{
-			if (!it.first)Res << "default:" + mCardList[it.second].getName();
-			else Res << "(" + to_string(it.first) + ")" + mCardList[it.second].getName();
+			if (!gid)Res << "default:" + pc->getName();
+			else Res << "(" + to_string(gid) + ")" + pc->getName();
 		}
 		return Res.show();
 	}
 
-	CharaCard& getCard(const string& name, long long group = 0);
+	PC getCard(const string& name, long long group = 0) const;
 
-	CharaCard& operator[](long long id)
-	{
-		if (mGroupIndex.count(id))return mCardList[mGroupIndex[id]];
-		if (mGroupIndex.count(0))return mCardList[mGroupIndex[0]];
-		return mCardList[0];
+	PC getCardByID(long long id) const;
+	PC operator[](long long id) const {
+		return getCardByID(id);
 	}
 
-	CharaCard& operator[](const string& name)
-	{
-		if (mNameIndex.count(name))return mCardList[mNameIndex[name]];
-		if (mGroupIndex.count(0))return mCardList[mGroupIndex[0]];
-		return mCardList[0];
-	}
+	PC operator[](const string& name) const;
 
 	void writeb(std::ofstream& fout) const;
 
 	void readb(std::ifstream& fin);
 };
 
-inline map<long long, Player> PList;
+extern unordered_map<long long, Player> PList;
 
 Player& getPlayer(long long qq);
 
-AttrVar idx_pc(AttrObject&);
+AttrVar idx_pc(const AttrObject&);

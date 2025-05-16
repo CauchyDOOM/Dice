@@ -1,7 +1,7 @@
 #pragma once
 
 /*
- * Copyright (C) 2019-2021 String.Empty
+ * Copyright (C) 2019-2024 String.Empty
  */
 
 #ifndef Dice_Console
@@ -17,7 +17,6 @@
 #include <array>
 #include <CivetServer.h>
 #include "STLExtern.hpp"
-#include "DiceXMLTree.h"
 #include "DiceFile.hpp"
 #include "MsgFormat.h"
 #include "DiceMsgSend.h"
@@ -45,7 +44,7 @@ public:
 
 	friend void ConsoleTimer();
 	friend class DiceEvent;
-	friend void MsgNote(AttrObject&, string, int);
+	friend void MsgNote(const AttrObject&, string, int);
 	//DiceSens DSens;
 	static const enumap<string> mClockEvent;
 
@@ -69,8 +68,9 @@ public:
 
 	static const fifo_dict_ci<int> intDefault;
 	static const std::unordered_map<std::string, string> confComment;
-	//Í¨ÖªÁĞ±í 1-ÈÕ³£»î¶¯/2-ÌáĞÑÊÂ¼ş/4-½ÓÊÕÏûÏ¢/8-¾¯¸æÄÚÈİ/16-ÓÃ»§ÍÆËÍ/32-÷»Äï¹ã²¥
-	int log(const std::string& msg, int lv, const std::string& strTime = "");
+	//é€šçŸ¥åˆ—è¡¨ 1-æ—¥å¸¸æ´»åŠ¨/2-æé†’äº‹ä»¶/4-æ¥æ”¶æ¶ˆæ¯/8-è­¦å‘Šå†…å®¹/16-ç”¨æˆ·æ¨é€/32-éª°å¨˜å¹¿æ’­
+	int log(const std::string& msg, int lv = 0, const std::string& strTime = "");
+	void log(const std::string& msg, const std::string& file);
 	operator long long() const { return master; }
 	void newMaster(long long);
 
@@ -122,9 +122,9 @@ extern Console console;
 
 extern std::set<long long> ExceptGroups;
 void getExceptGroup();
-	//÷»ÄïÁĞ±í
+	//éª°å¨˜åˆ—è¡¨
 	extern std::map<long long, long long> mDiceList;
-	//»ñÈ¡÷»ÄïÁĞ±í
+	//è·å–éª°å¨˜åˆ—è¡¨
 	void getDiceList();
 
 	struct fromMsg
@@ -139,9 +139,9 @@ void getExceptGroup();
 		};
 	};
 
-	//³ÌĞòÆô¶¯Ê±¼ä
+	//ç¨‹åºå¯åŠ¨æ—¶é—´
 	extern long long llStartTime;
-	//µ±Ç°Ê±¼ä
+	//å½“å‰æ—¶é—´
 	extern tm stNow;
 	std::string printClock(std::pair<int, int> clock);
 	std::string printSTime(tm st);

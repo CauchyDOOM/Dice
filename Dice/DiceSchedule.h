@@ -1,14 +1,15 @@
 #pragma once
 /*
- * Copyright (C) 2019-2022 String.Empty
- * ´¦Àí¶¨Ê±ÊÂ¼ş
- * ´¦Àí²»ÄÜ¼´Ê±Íê³ÉµÄÖ¸Áî
- * 2022/1/13: ÀäÈ´¼ÆÊ±
- * 2022/2/05: ½ñÈÕÊı¾İÀàĞÍÀ©Õ¹
- * 2022/8/08: »¥³âËø
+ * Copyright (C) 2019-2024 String.Empty
+ * å¤„ç†å®šæ—¶äº‹ä»¶
+ * å¤„ç†ä¸èƒ½å³æ—¶å®Œæˆçš„æŒ‡ä»¤
+ * 2022/1/13: å†·å´è®¡æ—¶
+ * 2022/2/05: ä»Šæ—¥æ•°æ®ç±»å‹æ‰©å±•
+ * 2022/8/08: äº’æ–¥é”
  */
 
 #include <mutex>
+#include <optional>
 #include "DiceMsgSend.h"
 #include "json.hpp"
 #include "DiceEvent.h"
@@ -16,7 +17,7 @@
 
 using std::shared_ptr;
 
-extern AttrIndexs MsgIndexs;
+extern AttrGetters MsgIndexs;
 
 /*
 class DiceJob : public DiceJobDetail {
@@ -47,7 +48,7 @@ struct CDConfig {
 };
 
 class DiceScheduler {
-	//ÊÂ¼şÀäÈ´ÆÚ
+	//äº‹ä»¶å†·å´æœŸ
 	unordered_map<string, time_t> untilJobs;
 	unordered_map<chatInfo, unordered_map<string, time_t>> cd_timer;
 public:
@@ -62,13 +63,14 @@ public:
 	void add_job_until(time_t, const char*);
 	bool is_job_cold(const char*);
 	void refresh_cold(const char*, time_t);
-	bool cnt_cd(const vector<CDQuest>&, const vector<CDQuest>&);
+	//0:success -1:colding -2:limited
+	int cnt_cd(const vector<CDQuest>&, const vector<CDQuest>&);
 };
 inline DiceScheduler sch;
 
 typedef void (*cmd)(AttrObject&);
 
-//½ñÈÕ¼ÇÂ¼
+//ä»Šæ—¥è®°å½•
 class DiceToday {
 	tm stToday;
 	unordered_map<long long, AttrObject>UserInfo;
@@ -81,18 +83,21 @@ public:
 	void load();
 	void save();
 	void set(long long qq, const string& key, const AttrVar& val);
-	void inc(const string& key) { UserInfo[0].inc(key); save(); }
+	void inc(const string& key);
 	//void inc(long long qq, const string& key, int cnt = 1) { cntUser[qq][key] += cnt; save(); }
 	unordered_map<long long, AttrObject>& getUserInfo() { return UserInfo; }
-	AttrVar& get(const string& key) { return UserInfo[0].at(key); }
-	AttrObject& get(long long uid) { return UserInfo[uid]; }
-	//AttrVar& get(long long uid, const string& key) { return UserInfo[uid].to_dict()[key]; }
-	AttrVar* get_if(long long qq, const string& key) {
-		if (UserInfo.count(qq) && UserInfo[qq].has(key))
-			return &UserInfo[qq].at(key);
-		else return nullptr;
+	AttrVar& get(const string& key) { return get(0)->at(key); }
+	AttrObject& get(long long uid) {
+		if (!UserInfo.count(uid))UserInfo.emplace(uid, AnysTable());
+		return UserInfo[uid];
 	}
-	int getJrrp(long long qq);
+	//AttrVar& get(long long uid, const string& key) { return UserInfo[uid].to_dict()[key]; }
+	std::optional<AttrVar> get_if(long long qq, const string& key) {
+		if (UserInfo.count(qq) && UserInfo[qq]->has(key))
+			return UserInfo[qq]->at(key);
+		else return std::nullopt;
+	}
+	AttrVar getJrrp(long long);
 	size_t cntUser() { return UserInfo.size(); }
 	void daily_clear();
 };

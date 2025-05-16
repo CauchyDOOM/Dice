@@ -1,25 +1,21 @@
 #pragma once
 
 /*
- * ÎÄ¼ş¶ÁĞ´
+ * æ–‡ä»¶è¯»å†™
  * Copyright (C) 2018-2021 w4123
- * Copyright (C) 2019-2021 String.Empty
+ * Copyright (C) 2019-2024 String.Empty
  */
 
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <cstdio>
-#include <vector>
-#include <map>
 #include <set>
 #include "filesystem.hpp"
 #include <functional>
 #include <unordered_set>
-#include <unordered_map>
 #include <cstdio>
-#include "fifo_map.hpp"
-#include "DiceXMLTree.h"
-#include "StrExtern.hpp"
+#include "tinyxml2.h"
 #include "DiceMsgSend.h"
 #include "MsgFormat.h"
 #include "EncodingConvert.h"
@@ -50,18 +46,10 @@ bool readFile(const std::filesystem::path& p, std::basic_string<Char, Trait, All
 	return true;
 }
 
-template <typename Map1, typename Map2>
-size_t map_merge(Map1& m1, const Map2& m2){
-	size_t t{ 0 };
-	for (auto& [k,v] : m2)	{
-		m1[k] = v;
-		++t;
-	}
-	return t;
-}
+std::optional<std::string> readFile(const std::filesystem::path& p);
 
 template <typename TKey, typename TVal>
-TVal get(const map<TKey, TVal>& m, TKey key, TVal def)
+TVal get(const std::unordered_map<TKey, TVal>& m, TKey key, TVal def)
 {
 	return (m.count(key) ? m.at(key) : def);
 	/*auto it = m.find(key);
@@ -92,7 +80,7 @@ bool fscan(std::ifstream& fin, C& obj)
 	return false;
 }
 
-// ¶ÁÈ¡¶ş½øÖÆÎÄ¼ş¡ª¡ª»ù´¡ÀàĞÍÖØÔØ
+// è¯»å–äºŒè¿›åˆ¶æ–‡ä»¶â€”â€”åŸºç¡€ç±»å‹é‡è½½
 template <typename T>
 std::enable_if_t<std::is_fundamental_v<T>, T> fread(ifstream& fin)
 {
@@ -101,7 +89,7 @@ std::enable_if_t<std::is_fundamental_v<T>, T> fread(ifstream& fin)
 	return t;
 }
 
-// ¶ÁÈ¡¶ş½øÖÆÎÄ¼ş¡ª¡ªstd::stringÖØÔØ
+// è¯»å–äºŒè¿›åˆ¶æ–‡ä»¶â€”â€”std::stringé‡è½½
 template <typename T>
 std::enable_if_t<std::is_same_v<T, std::string>, T> fread(ifstream& fin)
 {
@@ -113,7 +101,7 @@ std::enable_if_t<std::is_same_v<T, std::string>, T> fread(ifstream& fin)
 	return s;
 }
 
-// ¶ÁÈ¡¶ş½øÖÆÎÄ¼ş¡ª¡ªº¬readbº¯ÊıÀàÖØÔØ
+// è¯»å–äºŒè¿›åˆ¶æ–‡ä»¶â€”â€”å«readbå‡½æ•°ç±»é‡è½½
 template <class C, void(C::* U)(std::ifstream&) = &C::readb>
 C fread(ifstream& fin)
 {
@@ -157,7 +145,15 @@ fifo_map<T1, T2> fread(ifstream& fin) {
 	}
 	return dir;
 }
-// ¶ÁÈ¡¶ş½øÖÆÎÄ¼ş¡ª¡ªstd::setÖØÔØ
+// è¯»å–äºŒè¿›åˆ¶æ–‡ä»¶â€”â€”std::seté‡è½½
+template <typename T>
+void fread(ifstream& fin, std::unordered_set<T>& s){
+	short len = fread<short>(fin);
+	if (len > 0)while (len--){
+		const T item = fread<T>(fin);
+		s.insert(item);
+	}
+}
 template <typename T, bool isLib>
 std::set<T> fread(ifstream& fin)
 {
@@ -173,7 +169,7 @@ std::set<T> fread(ifstream& fin)
 }
 
 template <typename T1, typename T2>
-void readini(string& line, std::pair<T1, T2>& p, char delim = '=')
+void readini(const string& line, std::pair<T1, T2>& p, char delim = '=')
 {
 	const size_t pos = line.find(delim);
 	if (pos == std::string::npos)return;
@@ -198,8 +194,8 @@ std::pair<T1, T2> readini(const string& line, char delim = '='){
 
 void readini(ifstream& fin, std::string& s);
 
-template <typename T1, typename T2, class Sorter>
-void readini(string s, fifo_map<T1, T2, Sorter>& m)
+template <typename T1, typename T2, class Hasher, class Equal>
+void readini(string s, unordered_map<T1, T2, Hasher, Equal>& m)
 {
 	std::pair<T1, T2> p;
 	string line;
@@ -317,91 +313,40 @@ int loadFile(const std::filesystem::path& fpPath, nlohmann::fifo_map<T1, T2>& ma
 	return -1;
 }
 
-template <typename T1, typename T2>
-void loadFile(const std::filesystem::path& fpPath, std::multimap<T1, T2>& mapTmp)
-{
-	std::ifstream fin(fpPath);
-	if (fin)
-	{
-		T1 key;
-		T2 Val;
-		while (fin >> key >> Val)
-		{
-			mapTmp.insert({key, Val});
-		}
-	}
-	fin.close();
-}
-
 template <typename T, class C, void(C::* U)(std::ifstream&) = &C::readb>
-int loadBFile(const std::filesystem::path& fpPath, std::map<T, C>& m)
+int loadBFile(const std::filesystem::path& fpPath, std::unordered_map<T, std::shared_ptr<C>>& m)
 {
-	std::ifstream fin(fpPath, std::ios::in | std::ios::binary);
-	if (!fin)return -1;
-	const int len = fread<int>(fin);
-	int Cnt = 0;
-	T key;
-	while (fin.peek() != EOF && len > Cnt++)
-	{
-		key = fread<T>(fin);
-		m[key] = fread<C>(fin);
-	}
-	fin.close();
-	return Cnt;
-}
-
-template <typename T, class C, void(C::* U)(std::ifstream&) = &C::readb>
-int loadBFile(const std::filesystem::path& fpPath, std::unordered_map<T, C>& m)
-{
-	std::ifstream fin(fpPath, std::ios::in | std::ios::binary);
-	if (!fin)return -1;
-	int Cnt = 0;
-	try{
+	if (std::ifstream fin{ fpPath, std::ios::in | std::ios::binary }) {
+		int Cnt = 0;
 		const int len = fread<int>(fin);
-		T key;
-		while (fin.peek() != EOF && len > Cnt++)
-		{
-			key = fread<T>(fin);
+		while (fin.peek() != EOF && len > Cnt++){
+			auto key = fread<T>(fin);
+			auto val{ std::make_shared<C>(key) };
+			((*val).*U)(fin);
+			m.emplace(key, val);
+		}
+		return Cnt;
+	} 
+	return -1;
+}
+template <typename T, class C, void(C::* U)(std::ifstream&) = &C::readb>
+int loadBFile(const std::filesystem::path& fpPath, std::unordered_map<T, C>& m){
+	if (std::ifstream fin{ fpPath, std::ios::in | std::ios::binary }) {
+		int Cnt = 0;
+		const int len = fread<int>(fin);
+		while (fin.peek() != EOF && len > Cnt++){
+			auto key = fread<T>(fin);
 			(m[key].*U)(fin);
 		}
+		fin.close();
+		return Cnt;
 	}
-	catch (...) {
-
-	}
-	fin.close();
-	return Cnt;
-}
-
-template <class C>
-int loadINI(const std::filesystem::path& fpPath, std::map<std::string, C>& m)
-{
-	std::ifstream fin(fpPath, std::ios::in | std::ios::binary);
-	if (!fin)return -1;
-	std::string s, name;
-	C val;
-	getline(fin, s);
-	readini(fin, name);
-	val.readi(fin);
-	m[name] = val;
-	fin.close();
-	return 1;
+	return -1;
 }
 
 bool rdbuf(const std::filesystem::path& fpPath, string& s);
 
-//¶ÁÈ¡Î±xml
-template <class C, class Sorter, std::string(C::* U)() = &C::getName>
-int loadXML(const std::filesystem::path& fpPath, nlohmann::fifo_map<string, C, Sorter>& m)
-{
-	string s;
-	if (!rdbuf(fpPath, s))return -1;
-	DDOM xml(s);
-	C obj(xml);
-	m[obj.getName()].readt(xml);
-	return 1;
-}
-
-//±éÀúÎÄ¼ş¼Ğ
+//éå†æ–‡ä»¶å¤¹
 int listDir(const std::filesystem::path& dir, vector<std::filesystem::path>& files, bool isSub = false);
 size_t cntDirFile(const std::filesystem::path& dir);
 
@@ -418,7 +363,7 @@ int _loadDir(int (*load)(const std::filesystem::path&, T2&), const std::filesyst
 			const int Cnt = load(p, tmp);
 			if (Cnt < 0)
 			{
-				failureFiles.push_back(UTF8toGBK(p.path().filename().u8string()));
+				failureFiles.push_back(p.path().filename().u8string());
 				intFailure++;
 			}
 			else intItem += Cnt;
@@ -428,7 +373,7 @@ int _loadDir(int (*load)(const std::filesystem::path&, T2&), const std::filesyst
 	return 0;
 }
 
-//¶ÁÈ¡ÎÄ¼ş¼Ğ
+//è¯»å–æ–‡ä»¶å¤¹
 template <typename T>
 int loadDir(int (*load)(const std::filesystem::path&, T&), const std::filesystem::path& fpDir, T& tmp, ResList& logList,
             bool isSubdir = false)
@@ -444,41 +389,13 @@ int loadDir(int (*load)(const std::filesystem::path&, T&), const std::filesystem
 	{
 		if (_loadDir<std::filesystem::directory_iterator>(load, fpDir, tmp, intFile, intFailure, intItem, files) == -1)
 			return 0;
-		// ¼ÓÔØ Dice Extension Packages
-		std::error_code err;
-		for (const auto& p : std::filesystem::directory_iterator(fpDir, err))
-		{
-			if (std::filesystem::is_directory(p.status()) && std::filesystem::exists(p.path() / ".info.json"))
-			{
-				try 
-				{
-					ifstream i(p.path() / ".info.json");
-					if (!i)
-					{
-						throw std::runtime_error("Cannot open package file");
-					}
-					nlohmann::json j;
-					i >> j;
-					ExtensionInfo info;
-					j.get_to(info);
-					ExtensionManagerInstance->addInstalledPackage(info, p.path());
-				}
-				catch (const std::exception& e)
-				{
-					continue;
-				}
-				if (_loadDir<std::filesystem::directory_iterator>(load, p.path(), tmp, intFile, intFailure, intItem, files) == -1)
-					return 0;
-			}
-		}
-		if(err) return 0;
 	}
 
 	if (!intFile)return 0;
-	logList << "¶ÁÈ¡" + UTF8toGBK(fpDir.filename().u8string()) + "/ÖĞµÄ" + std::to_string(intFile) + "¸öÎÄ¼ş, ¹²" + std::to_string(intItem) + "¸öÌõÄ¿";
+	logList << "è¯»å–" + fpDir.filename().u8string() + "/ä¸­çš„" + std::to_string(intFile) + "ä¸ªæ–‡ä»¶, å…±" + std::to_string(intItem) + "ä¸ªæ¡ç›®";
 	if (intFailure)
 	{
-		logList << "¶ÁÈ¡Ê§°Ü" + std::to_string(intFailure) + "¸ö:";
+		logList << "è¯»å–å¤±è´¥" + std::to_string(intFailure) + "ä¸ª:";
 		for (auto& it : files)
 		{
 			logList << it;
@@ -498,14 +415,6 @@ template <class C, void(C::* U)(std::ofstream&) = &C::save>
 void fprint(std::ofstream& fout, C obj)
 {
 	obj.save(fout);
-}
-
-template <typename T1, typename T2>
-void fprint(std::ofstream& fout, std::pair<T1, T2> t)
-{
-	fprint(fout, t.first);
-	fout << "\t";
-	fprint(fout, t.second);
 }
 
 template <typename T>
@@ -538,6 +447,10 @@ template <class C, void(C::* U)(std::ofstream&) const = &C::writeb>
 void fwrite(ofstream& fout, const C& obj)
 {
 	obj.writeb(fout);
+}
+template <class C, void(C::* U)(std::ofstream&) const = &C::writeb>
+void fwrite(ofstream& fout, const std::shared_ptr<C>& obj){
+	obj->writeb(fout);
 }
 
 template <class C, void(C::* U)(std::ofstream&) = &C::writeb>
@@ -581,7 +494,16 @@ void fwrite(ofstream& fout, const nlohmann::fifo_map<T1, T2>& m)
 	}
 }
 
-
+template <typename T>
+void fwrite(ofstream& fout, const std::unordered_set<T>& s)
+{
+	const auto len = static_cast<size_t>(s.size());
+	fwrite(fout, len);
+	for (const auto& it : s)
+	{
+		fwrite(fout, it);
+	}
+}
 template <typename T>
 void fwrite(ofstream& fout, const std::set<T>& s)
 {
@@ -635,22 +557,7 @@ void saveFile(const std::filesystem::path& fpPath, const unordered_map<TKey, TVa
 }
 
 template <typename T, class C, void(C::* U)(std::ofstream&) const = &C::writeb>
-void saveBFile(const std::filesystem::path& fpPath, std::map<T, C>& m)
-{
-	if (clrEmpty(fpPath, m))return;
-	std::ofstream fout(fpPath, ios::out | ios::trunc | ios::binary);
-	const int len = m.size();
-	fwrite<int>(fout, len);
-	for (auto& [key,val] : m)
-	{
-		fwrite(fout, key);
-		fwrite(fout, val);
-	}
-	fout.close();
-}
-
-template <typename T, class C, void(C::* U)(std::ofstream&) = &C::writeb>
-void saveBFile(const std::filesystem::path& fpPath, std::map<T, C>& m)
+void saveBFile(const std::filesystem::path& fpPath, std::unordered_map<T, C>& m)
 {
 	if (clrEmpty(fpPath, m))return;
 	std::ofstream fout(fpPath, ios::out | ios::trunc | ios::binary);
@@ -665,7 +572,7 @@ void saveBFile(const std::filesystem::path& fpPath, std::map<T, C>& m)
 }
 
 template <typename T, class C, void(C::* U)(std::ofstream&) const = &C::writeb>
-void saveBFile(const std::filesystem::path& fpPath, std::unordered_map<T, C>& m)
+void saveBFile(const std::filesystem::path& fpPath, std::unordered_map<T, std::shared_ptr<C>>& m)
 {
 	if (clrEmpty(fpPath, m))return;
 	std::ofstream fout(fpPath, ios::out | ios::trunc | ios::binary);
@@ -674,39 +581,9 @@ void saveBFile(const std::filesystem::path& fpPath, std::unordered_map<T, C>& m)
 	for (auto& [key, val] : m)
 	{
 		fwrite(fout, key);
-		fwrite(fout, val);
+		val->writeb(fout);
 	}
 	fout.close();
-}
-
-template <typename T, class C, void(C::* U)(std::ofstream&) = &C::writeb>
-void saveBFile(const std::filesystem::path& fpPath, std::unordered_map<T, C>& m)
-{
-	if (clrEmpty(fpPath, m))return;
-	std::ofstream fout(fpPath, ios::out | ios::trunc | ios::binary);
-	const int len = m.size();
-	fwrite<int>(fout, len);
-	for (auto& [key, val] : m)
-	{
-		fwrite(fout, key);
-		fwrite(fout, val);
-	}
-	fout.close();
-}
-
-//¶ÁÈ¡Î±xml
-template <class C, std::string(C::* U)() = &C::writet>
-void saveXML(const std::string& strPath, C& obj)
-{
-	std::ofstream fout(strPath);
-	fout << obj.writet();
-}
-
-template <class C, std::string(C::* U)() = &C::writet>
-void saveXML(const std::filesystem::path& fpPath, C& obj)
-{
-	std::ofstream fout(fpPath);
-	fout << obj.writet();
 }
 
 std::string getNativePathString(const std::filesystem::path& fpPath);

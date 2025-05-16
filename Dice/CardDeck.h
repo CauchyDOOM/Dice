@@ -1,8 +1,8 @@
 #pragma once
 
 /*
- * ÅÆ¶Ñ³é¿¨¹¦ÄÜ
- * ÒòÎª·¢Õ¹·½ÏòÓëDice£¡²å¼ş²¢²»ÏàºÏ£¬ËùÒÔ¸üĞÂ»áÖ¹²½ÔÚÄ³ÖÖ³Ì¶È
+ * ç‰Œå †æŠ½å¡åŠŸèƒ½
+ * å› ä¸ºå‘å±•æ–¹å‘ä¸Diceï¼æ’ä»¶å¹¶ä¸ç›¸åˆï¼Œæ‰€ä»¥æ›´æ–°ä¼šæ­¢æ­¥åœ¨æŸç§ç¨‹åº¦
  * Copyright (C) 2019 String.Empty
  */
 
@@ -18,6 +18,7 @@ namespace CardDeck
 	extern fifo_dict_ci<std::vector<std::string>> mExternPublicDeck;
 	int findDeck(std::string strDeckName);
 	std::string drawCard(std::vector<std::string>& TempDeck, bool boolBack = false);
+	std::string drawOne(const std::vector<std::string>& TempDeck);
 	std::string draw(std::string strDeckName);
 };
 #endif /*CARD_DECK*/

@@ -1,7 +1,7 @@
 /*
- * ´ÊÌõ²éÑ¯Æ÷
- * »ùÓÚµ¹ÅÅÊµÏÖ¶Ô´ı²éÑ¯´ÊÌõµÄÏàËÆÆ¥Åä
- * Copyright (C) 2020-2022 String.Empty
+ * è¯æ¡æŸ¥è¯¢å™¨
+ * åŸºäºå€’æ’å®ç°å¯¹å¾…æŸ¥è¯¢è¯æ¡çš„ç›¸ä¼¼åŒ¹é…
+ * Copyright (C) 2020-2024 String.Empty
  */
 #pragma once
 #include <cstring>
@@ -17,7 +17,7 @@ using std::unordered_map;
 using std::unordered_set;
 
 struct WordNode {
-	//¸Ã½ÚµãµÄ·Ö´Ê£¬Á¬ĞøÊı×Ö¡¢Á¬Ğø×ÖÄ¸»ò¿í×Ö·ûµ¥×Ö
+	//è¯¥èŠ‚ç‚¹çš„åˆ†è¯ï¼Œè¿ç»­æ•°å­—ã€è¿ç»­å­—æ¯æˆ–å®½å­—ç¬¦å•å­—
 	//string word;
 	unordered_set<string>keys;
 	unordered_map<u16string, unordered_set<string>>next;
@@ -33,14 +33,14 @@ public:
 		u16string word;
 		for (size_t pos = 0; pos < title.length(); pos++) {
 			auto ch{ title[pos] };
-			if (isspace(ch) || dot.find(ch) != u16string::npos) { //ignore and cut off
+			if (isspace((int)ch) || dot.find(ch) != u16string::npos) { //ignore and cut off
 				if (!word.empty()) {
 					res.push_back(word);
 					word.clear();
 				}
 			}
 			else {
-				if (!isalnum(ch)) {// cut off
+				if (!isalnum((int)ch)) {// cut off
 					if (!word.empty()) {
 						res.push_back(word);
 						word.clear();
@@ -49,7 +49,7 @@ public:
 					continue;
 				}
 				if (!word.empty()
-					&& isdigit(title[pos]) != isdigit(word[0])) {
+					&& iswdigit(title[pos]) != iswdigit(word[0])) {
 					res.push_back(word);
 					word.clear();
 					continue;
@@ -77,9 +77,9 @@ public:
 		unordered_set<string> sInter;
 		const WordNode* last_word = nullptr;
 		for (const auto& word : words) {
-			//ÎŞ¸Ã´Ê£¬ÂÔ¹ı
+			//æ— è¯¥è¯ï¼Œç•¥è¿‡
 			if (!word_list.count(word))continue;
-			//¼ì²éÁ¬×º
+			//æ£€æŸ¥è¿ç¼€
 			if (last_word && last_word->next.find(word) != last_word->next.end()) {
 				for (const auto& w : last_word->next.find(word)->second) {
 					if (res.count(w))sInter.insert(w);

@@ -13,10 +13,12 @@ jobs:
         include:
         - type: Win32
           triplet: x86-windows-static
+          triplet_prefix: x86-windows
           mono: ''
           dll_sfx: windows.i386
         - type: x64
           triplet: x64-windows-static
+          triplet_prefix: x64-windows
           mono: ''
           dll_sfx: windows.amd64
           
@@ -39,15 +41,15 @@ jobs:
         # A list of files, directories, and wildcard patterns to cache and restore
         path: ${{github.workspace}}\vcpkg\vcpkg.exe
         # An explicit key for restoring and saving the cache
-        key: ${{ runner.os }}-${{ matrix.triplet }}-20221125re
-        restore-keys:  ${{ runner.os }}-${{ matrix.triplet }}-20221125re
+        key: ${{ runner.os }}-${{ matrix.triplet }}-20231006
+        restore-keys:  ${{ runner.os }}-${{ matrix.triplet }}-20231006
 
     - name: Setup Vcpkg
       shell: cmd
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ${{github.workspace}}/vcpkg
       run: bootstrap-vcpkg.bat
-      
+
     - name: 'Setup NuGet Credentials'
       shell: 'bash'
       # Replace <OWNER> with your organization name
@@ -82,7 +84,7 @@ jobs:
       run: ctest -C $BUILD_TYPE
       
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         # Artifact name
         name: ${{ matrix.triplet }}
@@ -125,15 +127,15 @@ jobs:
         # A list of files, directories, and wildcard patterns to cache and restore
         path: ${{github.workspace}}/vcpkg/vcpkg
         # An explicit key for restoring and saving the cache
-        key: ${{ runner.os }}-${{ matrix.triplet }}-20221125
-        restore-keys:  ${{ runner.os }}-${{ matrix.triplet }}-20221125
+        key: ${{ runner.os }}-${{ matrix.triplet }}-20231006
+        restore-keys:  ${{ runner.os }}-${{ matrix.triplet }}-20231006
         
     - name: Setup Vcpkg
       shell: bash
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ${{github.workspace}}/vcpkg
       run: ./bootstrap-vcpkg.sh
-      
+
     - name: 'Setup NuGet Credentials'
       shell: 'bash'
       # Replace <OWNER> with your organization name
@@ -145,6 +147,9 @@ jobs:
         -name "GitHub"
         -username "Dice-Developer-Team"
         -password "${{ secrets.GITHUB_TOKEN }}"
+    
+    - name: Automake
+      run: brew install autoconf automake autoconf-archive
 
     - name: Configure CMake
       working-directory: ${{github.workspace}}/build
@@ -165,7 +170,7 @@ jobs:
       run: ctest -C $BUILD_TYPE
       
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         # Artifact name
         name: ${{ matrix.triplet }}
@@ -208,7 +213,7 @@ jobs:
           mono: 'mono'
           dll_sfx: linux.arm
         
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     
     steps:
     - uses: actions/checkout@v3
@@ -222,7 +227,7 @@ jobs:
       
     - name: Install Cross Compiler
       run: sudo apt-get update && sudo apt-get install ${{ matrix.apt }}
-      
+
     - name: Cache
       uses: actions/cache@v3
       id: cache
@@ -230,15 +235,15 @@ jobs:
         # A list of files, directories, and wildcard patterns to cache and restore
         path: ${{github.workspace}}/vcpkg/vcpkg
         # An explicit key for restoring and saving the cache
-        key: ${{ runner.os }}-${{ matrix.triplet }}-20221125
-        restore-keys:  ${{ runner.os }}-${{ matrix.triplet }}-20221125
+        key: ${{ runner.os }}-${{ matrix.triplet }}-20231006
+        restore-keys:  ${{ runner.os }}-${{ matrix.triplet }}-20231006
         
     - name: Setup Vcpkg
       shell: bash
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ${{github.workspace}}/vcpkg
       run: ./bootstrap-vcpkg.sh
-      
+
     - name: 'Setup NuGet Credentials'
       shell: 'bash'
       # Replace <OWNER> with your organization name
@@ -250,6 +255,12 @@ jobs:
         -name "GitHub"
         -username "Dice-Developer-Team"
         -password "${{ secrets.GITHUB_TOKEN }}"
+    
+    - name: Add linux-headers
+      run: sudo apt-get install linux-libc-dev
+    
+    - name: Automake
+      run: sudo apt-get install autoconf automake autoconf-archive
 
     - name: Configure CMake
       # Use a bash shell so we can use the same syntax for environment variable
@@ -275,7 +286,7 @@ jobs:
       run: ctest -C $BUILD_TYPE
     
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         # Artifact name
         name: ${{ matrix.triplet }}
@@ -299,10 +310,6 @@ jobs:
           triplet: arm64-android
           mono: 'mono'
           dll_sfx: android.aarch64
-        - abi: x86_64
-          triplet: x64-android
-          mono: 'mono'
-          dll_sfx: android.amd64
         
     runs-on: ubuntu-22.04
     
@@ -323,15 +330,15 @@ jobs:
         # A list of files, directories, and wildcard patterns to cache and restore
         path: ${{github.workspace}}/vcpkg/vcpkg
         # An explicit key for restoring and saving the cache
-        key: ${{ runner.os }}-${{ matrix.triplet }}-20221125
-        restore-keys:  ${{ runner.os }}-${{ matrix.triplet }}-20221125
+        key: ${{ runner.os }}-${{ matrix.triplet }}-20231006
+        restore-keys:  ${{ runner.os }}-${{ matrix.triplet }}-20231006
         
     - name: Setup Vcpkg
       shell: bash
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ${{github.workspace}}/vcpkg
       run: ./bootstrap-vcpkg.sh
-      
+
     - name: 'Setup NuGet Credentials'
       shell: 'bash'
       # Replace <OWNER> with your organization name
@@ -363,7 +370,7 @@ jobs:
       run: ctest -C $BUILD_TYPE
       
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         # Artifact name
         name: ${{ matrix.triplet }}

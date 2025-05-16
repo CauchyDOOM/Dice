@@ -1,9 +1,9 @@
 #pragma once
 
 /*
- * ÏûÏ¢´¦Àí
+ * æ¶ˆæ¯å¤„ç†
  * Copyright (C) 2018-2021 w4123
- * Copyright (C) 2019-2021 String.Empty
+ * Copyright (C) 2019-2024 String.Empty
  */
 #ifndef DICE_EVENT
 #define DICE_EVENT
@@ -12,30 +12,26 @@
 #include <utility>
 #include <string>
 #include <regex>
-#include "GlobalVar.h"
-#include "MsgMonitor.h"
-#include "DiceSchedule.h"
 #include "DiceMsgSend.h"
-
+#include "ManagerSystem.h"
 
 using std::string;
+class RD;
 
-//´ò°ü´ı´¦ÀíÏûÏ¢
-class DiceEvent : public AttrObject {
+class DiceSession;
+//æ‰“åŒ…å¾…å¤„ç†æ¶ˆæ¯
+class DiceEvent : public AnysTable {
 public:
+	MetaType getType()const override { return MetaType::Context; }
 	chatInfo fromChat;
 	string strLowerMessage;
 	Chat* pGrp = nullptr;
+	ptr<DiceSession> thisGame();
 	string& strMsg;
 	string strReply;
 	std::wsmatch msgMatch;
 	DiceEvent(const AttrVars& var, const chatInfo& ct);
-	DiceEvent(const AttrVars& var);
-	AttrVar& operator[](const char* key) {
-		return (*dict)[key];
-	}
-
-	bool isBlock = false;
+	DiceEvent(const AnysTable& var);
 
 	bool isPrivate()const;
 	bool isChannel()const;
@@ -50,25 +46,24 @@ public:
 	void reply(bool isFormat = true);
 	void replyMsg(const std::string& key);
 	void replyHelp(const std::string& key);
-
+	void replyRollDiceErr(int, const RD&);
 	void replyHidden();
 
-	//Í¨Öª
+	//é€šçŸ¥
 	void note(std::string strMsg, int note_lv = 0b1);
 
-	//´òÓ¡ÏûÏ¢À´Ô´
+	//æ‰“å°æ¶ˆæ¯æ¥æº
 	std::string printFrom();
 
-	//×ª·¢ÏûÏ¢
+	//è½¬å‘æ¶ˆæ¯
 	void fwdMsg();
 	void logEcho();
 	int AdminEvent(const string& strOption);
 	int MasterSet();
 	int BasicOrder();
 	int InnerOrder();
-	//int CustomOrder();
-	//int CustomReply();
-	//ÅĞ¶ÏÊÇ·ñÏìÓ¦
+	bool monitorFrq();
+	//åˆ¤æ–­æ˜¯å¦å“åº”
 	bool DiceFilter();
 	bool WordCensor();
 	void virtualCall();
@@ -77,13 +72,14 @@ public:
 
 private:
 	bool isDisabled = false;
+	std::optional<string> getGameRule();
 	bool canRoomHost();
 
 	int getGroupTrust(long long group = 0);
 public:
 	bool isVirtual = false;
 	unsigned int intMsgCnt = 0;
-	//Ìø¹ı¿Õ¸ñ
+	//è·³è¿‡ç©ºæ ¼
 	void readSkipSpace()
 	{
 		while (intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])))intMsgCnt++;
@@ -103,7 +99,7 @@ public:
 		return strPara;
 	}
 
-	//¶ÁÈ¡ÖÁ·Ç¿Õ¸ñ¿Õ°×·û
+	//è¯»å–è‡³éç©ºæ ¼ç©ºç™½ç¬¦
 	string readUntilTab()
 	{
 		while (intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strMsg[intMsgCnt])))intMsgCnt++;
@@ -126,7 +122,7 @@ public:
 		return strMsg.substr(intMsgCnt);
 	}
 
-	//¶ÁÈ¡²ÎÊı(Í³Ò»Ğ¡Ğ´)
+	//è¯»å–å‚æ•°(ç»Ÿä¸€å°å†™)
 	string readPara()
 	{
 		string strPara;
@@ -143,28 +139,12 @@ public:
 		return strPara;
 	}
 
-	//¶ÁÈ¡Êı×Ö
-	string readDigit(bool isForce = true)
-	{
-		string strMum;
-		if (isForce)while (intMsgCnt < strMsg.length() && !isdigit(static_cast<unsigned char>(strMsg[intMsgCnt])))
-		{
-			if (strMsg[intMsgCnt] < 0)intMsgCnt++;
-			intMsgCnt++;
-		}
-		else while(intMsgCnt < strMsg.length() && isspace(static_cast<unsigned char>(strMsg[intMsgCnt])))intMsgCnt++;
-		while (intMsgCnt < strMsg.length() && isdigit(static_cast<unsigned char>(strMsg[intMsgCnt])))
-		{
-			strMum += strMsg[intMsgCnt];
-			intMsgCnt++;
-		}
-		if (intMsgCnt < strMsg.length() && strMsg[intMsgCnt] == ']')intMsgCnt++;
-		return strMum;
-	}
+	//è¯»å–æ•°å­—
+	string readDigit(bool isForce = true);
 
-	//¶ÁÈ¡Êı×Ö²¢´æÈëÕûĞÍ
+	//è¯»å–æ•°å­—å¹¶å­˜å…¥æ•´å‹
 	int readNum(int&);
-	//¶ÁÈ¡ÈººÅ
+	//è¯»å–ç¾¤å·
 	long long readID()
 	{
 		const string strGroup = readDigit();
@@ -172,7 +152,7 @@ public:
 		return stoll(strGroup);
 	}
 
-	//ÊÇ·ñ¿É¿´×öÖÀ÷»±í´ïÊ½
+	//æ˜¯å¦å¯çœ‹åšæ·éª°è¡¨è¾¾å¼
 	bool isRollDice()
 	{
 		readSkipSpace();
@@ -189,28 +169,11 @@ public:
 		return false;
 	}
 
-	//¶ÁÈ¡ÖÀ÷»±í´ïÊ½
-	string readDice()
-	{
-		string strDice;
-		while (isspace(static_cast<unsigned char>(strLowerMessage[intMsgCnt])) || strLowerMessage[intMsgCnt] == '=' ||
-			strLowerMessage[intMsgCnt] == ':')intMsgCnt++;
-		while (isdigit(static_cast<unsigned char>(strLowerMessage[intMsgCnt]))
-			|| strLowerMessage[intMsgCnt] == 'd' || strLowerMessage[intMsgCnt] == 'k'
-			|| strLowerMessage[intMsgCnt] == 'p' || strLowerMessage[intMsgCnt] == 'b'
-			|| strLowerMessage[intMsgCnt] == 'f'
-			|| strLowerMessage[intMsgCnt] == '+' || strLowerMessage[intMsgCnt] == '-'
-			|| strLowerMessage[intMsgCnt] == 'a'
-			|| strLowerMessage[intMsgCnt] == 'x' || strLowerMessage[intMsgCnt] == '*' || strMsg[intMsgCnt] == '/'
-			|| strLowerMessage[intMsgCnt] == '#')
-		{
-			strDice += strMsg[intMsgCnt];
-			intMsgCnt++;
-		}
-		return strDice;
-	}
+	//è¯»å–æ·éª°è¡¨è¾¾å¼
+	string readXDY();
+	string readDice();
 
-	//¶ÁÈ¡º¬×ªÒåµÄ±í´ïÊ½
+	//è¯»å–å«è½¬ä¹‰çš„è¡¨è¾¾å¼
 	string readExp()
 	{
 		bool inBracket = false;
@@ -219,8 +182,7 @@ public:
 		const int intBegin = intMsgCnt;
 		while (intMsgCnt != strMsg.length())
 		{
-			if (inBracket)
-			{
+			if (inBracket){
 				if (strMsg[intMsgCnt] == ']')inBracket = false;
 				intMsgCnt++;
 				continue;
@@ -248,7 +210,7 @@ public:
 		return strMsg.substr(intBegin, intMsgCnt - intBegin);
 	}
 
-	//¶ÁÈ¡µ½Ã°ºÅ»òµÈºÅÍ£Ö¹µÄÎÄ±¾
+	//è¯»å–åˆ°å†’å·æˆ–ç­‰å·åœæ­¢çš„æ–‡æœ¬
 	string readToColon()
 	{
 		while (isspace(static_cast<unsigned char>(strMsg[intMsgCnt])))intMsgCnt++;
@@ -266,61 +228,19 @@ public:
 		return strMsg.substr(intBegin, intMsgCnt - intBegin);
 	}
 
-	//¶ÁÈ¡´óĞ¡Ğ´²»Ãô¸ĞµÄ¼¼ÄÜÃû
-	string readAttrName()
-	{
-		while (isspace(static_cast<unsigned char>(strMsg[intMsgCnt])))intMsgCnt++;
-		const int intBegin = intMsgCnt;
-		int intEnd = intBegin;
-		const unsigned int len = strMsg.length();
-		while (intMsgCnt < len && !isdigit(static_cast<unsigned char>(strMsg[intMsgCnt]))
-			&& strMsg[intMsgCnt] != '=' && strMsg[intMsgCnt] != ':'
-			&& strMsg[intMsgCnt] != '+' && strMsg[intMsgCnt] != '-' && strMsg[intMsgCnt] != '*'
-			&& strMsg[intMsgCnt] !=	'/')
-		{
-			if (!isspace(static_cast<unsigned char>(strMsg[intMsgCnt])) || (!isspace(
-				static_cast<unsigned char>(strMsg[intEnd]))))intEnd = intMsgCnt;
-			if (strMsg[intMsgCnt] < 0)intMsgCnt += 2;
-			else intMsgCnt++;
-		}
-		if (intMsgCnt == strLowerMessage.length() && strLowerMessage.find(' ', intBegin) != string::npos)
-		{
-			intMsgCnt = strLowerMessage.find(' ', intBegin);
-		}
-		else if (isspace(static_cast<unsigned char>(strMsg[intEnd])))intMsgCnt = intEnd;
-		return strMsg.substr(intBegin, intMsgCnt - intBegin);
-	}
+	//è¯»å–å¤§å°å†™ä¸æ•æ„Ÿçš„æŠ€èƒ½å
+	string readAttrName();
 	string readFileName();
 	//
 	int readChat(chatInfo& ct, bool isReroll = false);
 
-	int readClock(Clock& cc)
-	{
-		const string strHour = readDigit();
-		if (strHour.empty())return -1;
-		const unsigned short nHour = stoi(strHour);
-		if (nHour > 23)return -2;
-		cc.first = nHour;
-		if (strMsg[intMsgCnt] == ':' || strMsg[intMsgCnt] == '.')intMsgCnt++;
-		if (strMsg.substr(intMsgCnt, 2) == "£º")intMsgCnt += 2;
-		readSkipSpace();
-		if (intMsgCnt >= strMsg.length() || !isdigit(static_cast<unsigned char>(strMsg[intMsgCnt])))
-		{
-			cc.second = 0;
-			return 0;
-		}
-		const string strMin = readDigit();
-		const unsigned short nMin = stoi(strMin);
-		if (nMin > 59)return -2;
-		cc.second = nMin;
-		return 0;
-	}
+	int readClock(Clock& cc);
 
-	//¶ÁÈ¡·ÖÏî
+	//è¯»å–åˆ†é¡¹
 	string readItem();
 	int readItems(vector<string>&);
 };
-void reply(AttrObject&, string, bool isFormat = true);
-void MsgNote(AttrObject&, string, int);
+void reply(const AttrObject&, string, bool isFormat = true);
+void MsgNote(const AttrObject&, string, int);
 
 #endif /*DICE_EVENT*/

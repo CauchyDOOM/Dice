@@ -1,5 +1,4 @@
 #pragma once
-
 /*
  *  _______     ________    ________    ________    __
  * |   __  \   |__    __|  |   _____|  |   _____|  |  |
@@ -9,8 +8,8 @@
  * |_______/   |________|  |________|  |________|  |__|
  *
  * Dice! QQ Dice Robot for TRPG
- * Copyright (C) 2018-2021 w4123Ëİä§
- * Copyright (C) 2019-2022 String.Empty
+ * Copyright (C) 2018-2021 w4123æº¯æ´„
+ * Copyright (C) 2019-2024 String.Empty
  *
  * This program is free software: you can redistribute it and/or modify it under the terms
  * of the GNU Affero General Public License as published by the Free Software Foundation,
@@ -30,84 +29,50 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #endif
-#include <map>
-#include <memory>
-#include <unordered_map>
+#include <shared_mutex>
 #include "STLExtern.hpp"
-#include "DiceExtensionManager.h"
-#include "DiceAttrVar.h"
 
 /*
- * °æ±¾ĞÅÏ¢
- * ÇëÎğĞŞ¸ÄDice_Build, Dice_Ver_Without_Build£¬DiceRequestHeaderÒÔ¼°Dice_Ver³£Á¿
- * ÇëĞŞ¸ÄDice_Short_Ver»òDice_Full_Ver³£Á¿ÒÔ´ïµ½°æ±¾×Ô¶¨Òå
+ * Dice Version
+ * Please Do not modify Dice_Build, Dice_Ver_Without_Build, DiceRequestHeader or Dice_Ver
+ * To costum version info, please modify const Dice_Short_Ver or Dice_Full_Ver
  */
-constexpr unsigned short Dice_Build = 637u;
-inline const std::string Dice_Ver_Without_Build = "2.6.6beta3";
-constexpr auto DiceRequestHeader = "Dice/2.6.6";
+constexpr unsigned short Dice_Build = 666u;
+inline const std::string Dice_Ver_Without_Build = "2.7.0release";
+constexpr auto DiceRequestHeader = "Dice/2.7.0";
 inline const std::string Dice_Ver = Dice_Ver_Without_Build + "(" + std::to_string(Dice_Build) + ")";
-inline const std::string Dice_Short_Ver = "Dice! by Ëİä§ & Shiki Ver " + Dice_Ver;
+extern std::string Dice_Short_Ver;
 constexpr bool isDev = true;
-
-#ifdef __clang__
-
-#ifdef _MSC_VER
-inline const std::string Dice_Full_Ver = Dice_Short_Ver + " [CLANG " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__) + "." + std::to_string(__clang_patchlevel__) + " with MSVC " + std::to_string(_MSC_VER) + " " + __DATE__ + " " + __TIME__;
-#elif defined(__GNUC__)
-inline const std::string Dice_Full_Ver = Dice_Short_Ver + " [CLANG " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__) + "." + std::to_string(__clang_patchlevel__) +  " with GNUC " + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." + std::to_string(__GNUC_PATCHLEVEL__) + " " + __DATE__ + " " + __TIME__;
-#else
-inline const std::string Dice_Full_Ver = Dice_Short_Ver + " [CLANG " + std::to_string(__clang_major__) + "." + std::to_string(__clang_minor__) + "." + std::to_string(__clang_patchlevel__);
-#endif
-
-#else
-
-#ifdef _MSC_VER
-inline const std::string Dice_Full_Ver = std::string(Dice_Short_Ver) + "[MSVC " + std::to_string(_MSC_VER) + " " + __DATE__ +
-	" " + __TIME__ + "]";
-#elif defined(__GNUC__)
-inline const std::string Dice_Full_Ver = Dice_Short_Ver + " [GNUC " + std::to_string(__GNUC__) + "." + std::to_string(__GNUC_MINOR__) + "." + std::to_string(__GNUC_PATCHLEVEL__) + " " + __DATE__ + " " + __TIME__;
-#else
-inline const std::string Dice_Full_Ver = Dice_Short_Ver + " [UNKNOWN COMPILER";
-#endif
-
-#endif
+extern std::string Dice_Full_Ver;
 
 #ifdef _WIN32
 // DLL hModule
 extern HMODULE hDllModule;
 #endif 
 
-extern std::unique_ptr<ExtensionManager> ExtensionManagerInstance;
-
-// Ó¦ÓÃÊÇ·ñ±»ÆôÓÃ
+// if is enabled
 extern bool Enabled;
 
-// ÔËĞĞ»·¾³
-//enum class QQFrame { CoolQ, Mirai, XianQu };
-//extern QQFrame frame;
-
-// Dice×îÍêÕûµÄ°æ±¾×Ö·û´®
+// Diceæœ€å®Œæ•´çš„ç‰ˆæœ¬å­—ç¬¦ä¸²
 extern std::string Dice_Full_Ver_On;
 
-// ¿ÉÖ´ĞĞÎÄ¼şÎ»ÖÃ
 //extern std::string strModulePath;
 
-// ÏûÏ¢·¢ËÍÏß³ÌÊÇ·ñÕıÔÚÔËĞĞ
+// æ¶ˆæ¯å‘é€çº¿ç¨‹æ˜¯å¦æ­£åœ¨è¿è¡Œ
 extern bool msgSendThreadRunning;
 
-// »Ø¸´ĞÅÏ¢, ´ËÄÚÈİ¿ÉÒÔÍ¨¹ıCustomMsg¹¦ÄÜĞŞ¸Ä¶øÎŞĞèĞŞ¸ÄÔ´´úÂë
+// å›å¤ä¿¡æ¯, æ­¤å†…å®¹å¯ä»¥é€šè¿‡CustomMsgåŠŸèƒ½ä¿®æ”¹è€Œæ— éœ€ä¿®æ”¹æºä»£ç 
 extern std::shared_mutex GlobalMsgMutex;
 extern dict_ci<string> GlobalMsg;
 extern const dict_ci<string> PlainMsg;
-// ĞŞ¸ÄºóµÄGlobalÓï¾ä
+// ä¿®æ”¹åçš„Globalè¯­å¥
 extern fifo_dict_ci<string> EditedMsg;
-// Óï¾ä×¢ÊÍ
+// è¯­å¥æ³¨é‡Š
 extern const dict_ci<string> GlobalComment;
-// °ïÖúÎÄµµ
+// å¸®åŠ©æ–‡æ¡£
 extern const dict_ci<string> HelpDoc;
-// ĞŞ¸ÄºóµÄ°ïÖúÎÄµµ
+// ä¿®æ”¹åçš„å¸®åŠ©æ–‡æ¡£
 extern fifo_dict_ci<string> CustomHelp;
-const std::string getMsg(const std::string& key, AttrObject tmp = {});
 const std::string getComment(const std::string& key);
 
 #endif /*DICE_GLOBAL_VAR*/

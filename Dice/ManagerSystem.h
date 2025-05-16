@@ -1,11 +1,28 @@
-#pragma once
-
 /*
- * ºóÌ¨ÏµÍ³
- * Copyright (C) 2019-2022 String.Empty
- * ¿ØÖÆÇåÀíÓÃ»§/ÈºÁÄ¼ÇÂ¼£¬ÇåÀíÍ¼Æ¬£¬¼à¿ØÏµÍ³
+ *  _______     ________    ________    ________    __
+ * |   __  \   |__    __|  |   _____|  |   _____|  |  |
+ * |  |  |  |     |  |     |  |        |  |_____   |  |
+ * |  |  |  |     |  |     |  |        |   _____|  |__|
+ * |  |__|  |   __|  |__   |  |_____   |  |_____    __
+ * |_______/   |________|  |________|  |________|  |__|
+ *
+ * Dice! QQ Dice Robot for TRPG
+ * åå°ç”¨æˆ·ç®¡ç†ï¼Œç³»ç»Ÿç›‘æ§
+ * Copyright (C) 2018-2021 w4123æº¯æ´„
+ * Copyright (C) 2019-2024 String.Empty
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms
+ * of the GNU Affero General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License along with this
+ * program. If not, see <http://www.gnu.org/licenses/>.
  */
-
+#pragma once 
 #include <set>
 #include <map>
 #include <utility>
@@ -34,60 +51,49 @@ constexpr auto CQ_FACE = "[CQ:face,id=";
 constexpr auto CQ_POKE = "[CQ:poke,id=";
 constexpr auto CQ_FILE = "[CQ:file,";
 
-//¼ÓÔØÊı¾İ
+//åŠ è½½æ•°æ®
 void loadData();
-//±£´æÊı¾İ
+//ä¿å­˜æ•°æ®
 void dataBackUp();
 
-//ÓÃ»§¼ÇÂ¼
-class User
+//ç”¨æˆ·è®°å½•
+class User :public AnysTable
 {
 public:
-	long long ID = 0;
-	//1-Ë½ÓÃĞÅÈÎ£¬2-À­ºÚ»íÃâ£¬3-¼ÓºÚÍËÈº£¬4-ºóÌ¨¹ÜÀí£¬5-Master
+	MetaType getType()const override { return MetaType::Context; }
+	const long long ID = 0;
+	//1-ç§ç”¨ä¿¡ä»»ï¼Œ2-æ‹‰é»‘è±å…ï¼Œ3-åŠ é»‘é€€ç¾¤ï¼Œ4-åå°ç®¡ç†ï¼Œ5-Master
 	int nTrust = 0;
-	time_t tCreated = time(nullptr);
+	time_t tCreated = 0;
 
-	User(){}
-
-	AttrObject confs;
+	explicit User(long long id): ID(id), tCreated(time(nullptr)) {
+		dict["tCreated"] = (long long)tCreated;
+	}
 	unordered_map<long long, string> strNick{};
-	std::mutex ex_user;
+	mutable std::mutex ex_user;
+	bool has(const string& key)const override;
+	AttrVar get(const string& key, const AttrVar& val = {})const override;
 
-	User& id(long long qq)
+	/*User& create(time_t tt)
 	{
-		ID = qq;
+		if (tt < tCreated)at("tCreated") = long long(tCreated = tt);
 		return *this;
-	}
-
-	User& create(time_t tt)
-	{
-		if (tt < tCreated)tCreated = tt;
-		return *this;
-	}
+	}*/
 
 	User& update(time_t tt) {
-		confs.set("tUpdated", (long long)tt);
+		dict["tUpdated"] = (long long)tt;
 		return *this;
 	}
-	time_t updated()const { return confs.get_ll("tUpdated"); }
+	time_t updated()const { return get_ll("tUpdated"); }
 
-	User& trust(int n)
-	{
-		nTrust = n;
-		confs["trust"] = n;
-		return *this;
-	}
+	User& trust(int n);
 
-	[[nodiscard]] bool empty() const;
+	[[nodiscard]] bool empty() const override;
 
-	[[nodiscard]] bool isset(const string& key) const{
-		return confs.has(key);
-	}
 	void setConf(const string& key, const AttrVar& val);
 	void rmConf(const string& key);
 	int getConf(const string& key, int def = 0) {
-		if (confs.has(key))return confs.get_int(key);
+		if (has(key))return get_int(key);
 		return def;
 	}
 
@@ -117,103 +123,84 @@ public:
 		strNick.clear();
 	}
 
-	void writeb(std::ofstream& fout);
+	void writeb(std::ofstream& fout) const;
 
 	void old_readb(std::ifstream& fin);
 	void readb(std::ifstream& fin);
 };
 
-ifstream& operator>>(ifstream& fin, User& user);
-extern unordered_map<long long, User> UserList;
+extern unordered_map<long long, ptr<User>> UserList;
 extern unordered_map<long long, long long> TinyList;
 User& getUser(long long qq); 
 AttrVar getUserItem(long long uid, const string& item);
 AttrVar getGroupItem(long long uid, const string& item);
 AttrVar getSelfItem(string item);
-AttrVar getContextItem(AttrObject context, string item, bool isTrust = true);
+AttrVar getContextItem(const AttrObject& context, string item, bool isTrust = true);
 int trustedQQ(long long qq);
 int clearUser();
 int clearGroup();
 
 string getName(long long QQ, long long GroupID = 0);
-AttrVar idx_nick(AttrObject&);
+AttrVar idx_nick(const AttrObject&);
 string filter_CQcode(const string&, long long fromGID = 0);
 //forward msg
 string forward_filter(const string&, long long fromGID = 0);
 
-extern const map<string, short> mChatConf;
+extern const dict<short> mChatConf;
 
-//ÈºÁÄ¼ÇÂ¼
-class Chat
-{
+//ç¾¤èŠè®°å½•
+class Chat :public AnysTable {
+	mutable string Name;
 public:
-	bool isGroup = true;
+	MetaType getType()const override { return MetaType::Context; }
+	const long long ID = 0;
 	long long inviter = 0;
-	long long ID = 0;
-	string Name = "";
-	time_t tCreated = time(nullptr);
+	time_t tCreated = 0;
 
-	Chat() {}
-
-	AttrObject confs;
-	map<long long, AttrObject>ChConf;
-
-	Chat& id(long long grp);
-
-	Chat& group()
-	{
-		isGroup = true;
-		return *this;
+	explicit Chat(long long id):ID(id), tCreated(time(nullptr)) {
+		dict["tCreated"] = (long long)tCreated;
 	}
 
-	Chat& channel()
-	{
-		isGroup = false;
-		return *this;
-	}
-	time_t getLst()const { return (time_t)confs.get_ll("lastMsg"); }
-	void rmLst()const { confs.reset("lastMsg"); }
-	Chat& setLst(time_t t) { confs.set("lastMsg", (long long)t); return *this; }
+	unordered_map<long long, AnysTable>ChConf;
 
-	Chat& name(string s)
-	{
-		Name = std::move(s);
-		return *this;
-	}
+	bool has(const string& key)const override;
+	AttrVar get(const string& key, const AttrVar& val = {})const override;
+	//Chat& id(long long grp);
+	time_t getLst()const { return (time_t)get_ll("lastMsg"); }
+	void rmLst() { reset("lastMsg"); }
+	Chat& setLst(time_t t);
 
-	Chat& create(time_t tt)
-	{
-		if (tt < tCreated)tCreated = tt;
-		return *this;
-	}
+	Chat& name(const string& s);
+	string print()const override;
 
-	Chat& update(){
-		confs.set("tUpdated", (long long)time(nullptr));
-		return *this;
-	}
-	Chat& update(time_t tt)	{
-		confs.set("tUpdated", (long long)tt);
-		return *this;
-	}
-	time_t updated()const { return confs.get_ll("tUpdated"); }
+	//Chat& create(time_t tt);
+
+	Chat& update();
+	Chat& update(time_t tt);
+	time_t updated()const { return get_ll("tUpdated"); }
 
 	Chat& set(const string& item){
-		confs.set(item);
+		at(item) = true;
 		return *this;
 	}
-	void set(const string& item, const AttrVar& val) {
-		confs.set(item, val);
-		update();
+	void set(const string& key, const AttrVar& val) override{
+		if (!key.empty()) {
+			if (val.is_null())dict.erase(key);
+			else dict[key] = val;
+			update();
+		}
 	}
 
 	Chat& reset(const string& item)
 	{
-		confs.reset(item);
+		dict.erase(item);
 		update();
 		return *this;
 	}
+	void invited(long long id);
+	[[nodiscard]] bool empty() const override;
 	int getConf(const string& key, int def = 0) {
-		if (confs.has(key))return confs.get_int(key);
+		if (has(key))return get_int(key);
 		return def;
 	}
 	int getChConf(long long chid, const string& key, int def = 0) {
@@ -227,11 +214,6 @@ public:
 
 	void leave(const string& msg = "");
 
-	[[nodiscard]] bool isset(const string& key) const
-	{
-		return confs.is(key);
-	}
-
 	bool is_except()const;
 
 
@@ -239,22 +221,19 @@ public:
 	{
 		ResList res;
 		for (const auto& [it,n] : mChatConf) {
-			if (confs.has(it))res << it;
+			if (has(it))res << it;
 		}
 		return res.dot("+").show();
 	}
 
-	void writeb(std::ofstream& fout);
+	void writeb(std::ofstream& fout) const;
 
 	void readb(std::ifstream& fin);
 };
 
-extern unordered_map<long long, Chat> ChatList;
+extern unordered_map<long long, ptr<Chat>> ChatList;
 Chat& chat(long long id);
 int groupset(long long id, const string& st);
-string printChat(Chat& grp);
-ifstream& operator>>(ifstream& fin, Chat& grp);
-ofstream& operator<<(ofstream& fout, const Chat& grp);
 
 #ifdef _WIN32
 DWORD getRamPort();
@@ -270,7 +249,7 @@ DWORD getRamPort();
 
 __int64 compareFileTime(const FILETIME& ft1, const FILETIME& ft2);
 
-//WIN CPUÊ¹ÓÃÇé¿ö
+//WIN CPUä½¿ç”¨æƒ…å†µ
 long long getWinCpuUsage();
 
 long long getProcessCpu();

@@ -22,6 +22,7 @@
 #include "DiceNetwork.h"
 #include "DiceSession.h"
 #include "DiceEvent.h"
+#include "DiceZip.h"
 #pragma warning(disable:28159)
 
 using namespace std;
@@ -34,7 +35,7 @@ int sendSelf(const string& msg) {
 
 void cq_exit(AttrObject& job) {
 #ifdef _WIN32
-	MsgNote(job, "ÒÑÁî" + getMsg("self") + "ÔÚ5Ãëºó×ÔÉ±", 1);
+	MsgNote(job, "å·²ä»¤" + getMsg("self") + "åœ¨5ç§’åè‡ªæ€", 1);
 	std::this_thread::sleep_for(5s);
 	dataBackUp();
 	DD::killme();
@@ -53,7 +54,7 @@ inline PROCESSENTRY32 getProcess(int pid) {
 
 void frame_restart(AttrObject& job) {
 #ifdef _WIN32
-	if (!job.get_ll("uid")) {
+	if (!job->get_ll("uid")) {
 		if (console["AutoFrameRemake"] <= 0) {
 			sch.add_job_for(60 * 60, job);
 			return;
@@ -72,9 +73,9 @@ void frame_restart(AttrObject& job) {
 
 void frame_reload(AttrObject& job) {
 	if (DD::reload())
-		MsgNote(job, "ÖØÔØ" + getMsg("self") + "Íê³É¡Ì", 1);
+		MsgNote(job, "é‡è½½" + getMsg("self") + "å®Œæˆâˆš", 1);
 	else
-		MsgNote(job, "ÖØÔØ" + getMsg("self") + "Ê§°Ü¡Á", 0b10);
+		MsgNote(job, "é‡è½½" + getMsg("self") + "å¤±è´¥Ã—", 0b10);
 }
 
 void check_system(AttrObject& job) {
@@ -84,21 +85,21 @@ void check_system(AttrObject& job) {
 		perCPU(0), perDisk(0);
 	static bool isAlarmRAM(false), isAlarmCPU(false), isAlarmDisk(false);
 	static double mbFreeBytes = 0, mbTotalBytes = 0;
-	//ÄÚ´æ¼ì²â
+	//å†…å­˜æ£€æµ‹
 	if (console["SystemAlarmRAM"] > 0) {
 		perRAM = getRamPort();
 		if (perRAM > console["SystemAlarmRAM"] && perRAM > perLastRAM) {
-			console.log("¾¯¸æ£º" + getMsg("strSelfName") + "ËùÔÚÏµÍ³ÄÚ´æÕ¼ÓÃ´ï" + to_string(perRAM) + "%", 0b1000, printSTime(stNow));
+			console.log("è­¦å‘Šï¼š" + getMsg("strSelfName") + "æ‰€åœ¨ç³»ç»Ÿå†…å­˜å ç”¨è¾¾" + to_string(perRAM) + "%", 0b1000, printSTime(stNow));
 			perLastRAM = perRAM;
 			isAlarmRAM = true;
 		}
 		else if (perLastRAM > console["SystemAlarmRAM"] && perRAM < console["SystemAlarmRAM"]) {
-			console.log("ÌáĞÑ£º" + getMsg("strSelfName") + "ËùÔÚÏµÍ³ÄÚ´æÕ¼ÓÃ½µÖÁ" + to_string(perRAM) + "%", 0b10, printSTime(stNow));
+			console.log("æé†’ï¼š" + getMsg("strSelfName") + "æ‰€åœ¨ç³»ç»Ÿå†…å­˜å ç”¨é™è‡³" + to_string(perRAM) + "%", 0b10, printSTime(stNow));
 			perLastRAM = perRAM;
 			isAlarmRAM = false;
 		}
 	}
-	//CPU¼ì²â
+	//CPUæ£€æµ‹
 	if (console["SystemAlarmCPU"] > 0) {
 		perCPU = getWinCpuUsage() / 10.0;
 		if (perCPU > 99.9) {
@@ -106,26 +107,26 @@ void check_system(AttrObject& job) {
 			perCPU = getWinCpuUsage() / 10.0;
 		}
 		if (perCPU > console["SystemAlarmCPU"] && (!isAlarmCPU || perCPU > perLastCPU + 1)) {
-			console.log("¾¯¸æ£º" + getMsg("strSelfName") + "ËùÔÚÏµÍ³CPUÕ¼ÓÃ´ï" + toString(perCPU) + "%", 0b1000, printSTime(stNow));
+			console.log("è­¦å‘Šï¼š" + getMsg("strSelfName") + "æ‰€åœ¨ç³»ç»ŸCPUå ç”¨è¾¾" + toString(perCPU) + "%", 0b1000, printSTime(stNow));
 			perLastCPU = perCPU;
 			isAlarmCPU = true;
 		}
 		else if (perLastCPU > console["SystemAlarmCPU"] && perCPU < console["SystemAlarmCPU"]) {
-			console.log("ÌáĞÑ£º" + getMsg("strSelfName") + "ËùÔÚÏµÍ³CPUÕ¼ÓÃ½µÖÁ" + toString(perCPU) + "%", 0b10, printSTime(stNow));
+			console.log("æé†’ï¼š" + getMsg("strSelfName") + "æ‰€åœ¨ç³»ç»ŸCPUå ç”¨é™è‡³" + toString(perCPU) + "%", 0b10, printSTime(stNow));
 			perLastCPU = perCPU;
 			isAlarmCPU = false;
 		}
 	}
-	//Ó²ÅÌ¼ì²â
+	//ç¡¬ç›˜æ£€æµ‹
 	if (console["SystemAlarmRAM"] > 0) {
 		perDisk = getDiskUsage(mbFreeBytes, mbTotalBytes) / 10.0;
 		if (perDisk > console["SystemAlarmDisk"] && (!isAlarmDisk || perDisk > perLastDisk + 1)) {
-			console.log("¾¯¸æ£º" + getMsg("strSelfName") + "ËùÔÚÏµÍ³Ó²ÅÌÕ¼ÓÃ´ï" + toString(perDisk) + "%", 0b1000, printSTime(stNow));
+			console.log("è­¦å‘Šï¼š" + getMsg("strSelfName") + "æ‰€åœ¨ç³»ç»Ÿç¡¬ç›˜å ç”¨è¾¾" + toString(perDisk) + "%", 0b1000, printSTime(stNow));
 			perLastDisk = perDisk;
 			isAlarmDisk = true;
 		}
 		else if (perLastDisk > console["SystemAlarmDisk"] && perDisk < console["SystemAlarmDisk"]) {
-			console.log("ÌáĞÑ£º" + getMsg("strSelfName") + "ËùÔÚÏµÍ³Ó²ÅÌÕ¼ÓÃ½µÖÁ" + toString(perDisk) + "%", 0b10, printSTime(stNow));
+			console.log("æé†’ï¼š" + getMsg("strSelfName") + "æ‰€åœ¨ç³»ç»Ÿç¡¬ç›˜å ç”¨é™è‡³" + toString(perDisk) + "%", 0b10, printSTime(stNow));
 			perLastDisk = perDisk;
 			isAlarmDisk = false;
 		}
@@ -141,26 +142,26 @@ void check_system(AttrObject& job) {
 
 void auto_save(AttrObject& job) {
 	if (sch.is_job_cold("autosave"))return;
-	DD::debugLog(printSTNow() + " ×Ô¶¯±£´æ");
+	DD::debugLog(printSTNow() + " è‡ªåŠ¨ä¿å­˜");
 	dataBackUp();
-	//console.log(getMsg("strSelfName") + "ÒÑ×Ô¶¯±£´æ", 0, printSTNow());
+	//console.log(getMsg("strSelfName") + "å·²è‡ªåŠ¨ä¿å­˜", 0, printSTNow());
 	if (console["AutoSaveInterval"] > 0) {
 		sch.refresh_cold("autosave", time(NULL) + console["AutoSaveInterval"] * (time_t)60);
 		sch.add_job_for(console["AutoSaveInterval"] * 60, "autosave");
 	}
 }
 
-//±»ÒıÓÃµÄÍ¼Æ¬ÁĞ±í
+//è¢«å¼•ç”¨çš„å›¾ç‰‡åˆ—è¡¨
 void clear_image(AttrObject& job) {
 	return;
-	if (!job.has("uid")) {
+	if (!job->has("uid")) {
 		if (sch.is_job_cold("clrimage"))return;
 		if (console["AutoClearImage"] <= 0) {
 			sch.add_job_for(60 * 60, job);
 			return;
 		}
 	}
-	//MsgNote(job, "ÒÑÇåÀíimageÎÄ¼ş" + to_string(cnt) + "Ïî", 1);
+	//MsgNote(job, "å·²æ¸…ç†imageæ–‡ä»¶" + to_string(cnt) + "é¡¹", 1);
 	if (console["AutoClearImage"] > 0) {
 		sch.refresh_cold("clrimage", time(NULL) + console["AutoClearImage"]);
 		sch.add_job_for(console["AutoClearImage"] * 60 * 60, "clrimage");
@@ -168,90 +169,90 @@ void clear_image(AttrObject& job) {
 }
 
 void clear_group(AttrObject& job) {
-	console.log("¿ªÊ¼Çå²éÈºÁÄ", 0, printSTNow());
+	console.log("å¼€å§‹æ¸…æŸ¥ç¾¤èŠ", 0, printSTNow());
 	int intCnt = 0;
 	ResList res;
 	vector<long long> GrpDelete;
 	time_t grpline{ console["InactiveGroupLine"] > 0 ? (tNow - console["InactiveGroupLine"] * (time_t)86400) : 0 };
-	if (string mode{ job.get_str("clear_mode") };mode == "unpower") {
+	if (string mode{ job->get_str("clear_mode") };mode == "unpower") {
 		for (auto& [id, grp] : ChatList) {
-			if (grp.isset("ºöÂÔ") || !grp.getLst() || grp.isset("ÃâÇå") || grp.isset("Ğ­ÒéÎŞĞ§"))continue;
-			if (grp.isGroup && !DD::isGroupAdmin(id, console.DiceMaid, true)) {
+			if (grp->is("å¿½ç•¥") || !grp->getLst() || grp->is("å…æ¸…") || grp->is("åè®®æ— æ•ˆ"))continue;
+			if (!DD::isGroupAdmin(id, console.DiceMaid, true)) {
 				res << printGroup(id);
-				time_t tLast{ grp.updated() };
+				time_t tLast{ grp->updated() };
 				if (auto s{ sessions.get_if({ 0,id }) })
 					tLast = s->tUpdate > tLast ? s->tUpdate : tLast;
 				if (tLast < grpline)GrpDelete.push_back(id);
-				grp.leave(getMsg("strLeaveNoPower"));
+				grp->leave(getMsg("strLeaveNoPower"));
 				intCnt++;
 				if (console["GroupClearLimit"] > 0 && intCnt >= console["GroupClearLimit"])break;
 				this_thread::sleep_for(3s);
 			}
 		}
-		MsgNote(job, "É¸³ı{strSelfName}·ÇÈº¹ÜÈºÁÄ" + to_string(intCnt) + "¸ö:" + res.show(), 0b10);
+		MsgNote(job, "ç­›é™¤{strSelfName}éç¾¤ç®¡ç¾¤èŠ" + to_string(intCnt) + "ä¸ª:" + res.show(), 0b10);
 	}
 	else if (!mode.empty() && isdigit(static_cast<unsigned char>(mode[0]))) {
-		int intDayLim{ job.get_int("clear_mode") };
+		int intDayLim{ job->get_int("clear_mode") };
 		time_t tNow{ time(nullptr) };
 		for (auto& [id, grp] : ChatList) {
-			if (grp.isset("ºöÂÔ") || grp.isset("ÃâÇå") || grp.isset("Ğ­ÒéÎŞĞ§"))continue;
-			time_t tLast{ grp.getLst() };
+			if (grp->is("å¿½ç•¥") || grp->is("å…æ¸…") || grp->is("åè®®æ— æ•ˆ"))continue;
+			time_t tLast{ grp->getLst() };
 			if (auto s{ sessions.get_if({ 0,id }) };s && s->tUpdate > tLast)
 				tLast = s->tUpdate;
 			if (tNow - 86400LL * intDayLim < tLast)continue;
 			if (long long tLMT{ DD::getGroupLastMsg(id, console.DiceMaid) };
-				tLMT > tLast)grp.setLst(tLast = tLMT);
+				tLMT > tLast)grp->setLst(tLast = tLMT);
 			if (tLast <= 0)continue;
-			if (tLast < grpline && !grp.isset("ÃâºÚ"))GrpDelete.push_back(id);
+			if (tLast < grpline && !grp->is("å…é»‘"))GrpDelete.push_back(id);
 			int intDay{ int((tNow - tLast) / 86400) };
 			if (intDay > intDayLim) {
-				job["day"] = to_string(intDay);
-				res << printGroup(id) + ":" + to_string(intDay) + "Ìì\n";
-				grp.leave(getMsg("strLeaveUnused", job));
+				job->at("day") = to_string(intDay);
+				res << printGroup(id) + ":" + to_string(intDay) + "å¤©\n";
+				grp->leave(getMsg("strLeaveUnused", job));
 				intCnt++;
 				if (console["GroupClearLimit"] > 0 && intCnt >= console["GroupClearLimit"])break;
 				this_thread::sleep_for(3s);
 			}
 		}
-		MsgNote(job, "ÒÑÉ¸³ı{strSelfName}Ç±Ë®{clear_mode}ÌìÈºÁÄ" + to_string(intCnt) + "¸ö¡Ì" + res.show(), 0b10);
+		MsgNote(job, "å·²ç­›é™¤{strSelfName}æ½œæ°´{clear_mode}å¤©ç¾¤èŠ" + to_string(intCnt) + "ä¸ªâˆš" + res.show(), 0b10);
 	}
 	else if (mode == "black") {
 		try {
 			set<long long> grps{ DD::getGroupIDList() };
 			for (auto id : grps) {
-				Chat& grp = chat(id).group().name(DD::getGroupName(id));
-				if (grp.isset("ºöÂÔ") || grp.isset("ÃâÇå") || grp.isset("ÃâºÚ") || grp.isset("Ğ­ÒéÎŞĞ§"))continue;
+				Chat& grp = chat(id).name(DD::getGroupName(id));
+				if (grp.is("å¿½ç•¥") || grp.is("å…æ¸…") || grp.is("å…é»‘") || grp.is("åè®®æ— æ•ˆ"))continue;
 				if (blacklist->get_group_danger(id)) {
 					time_t tLast{ grp.updated() };
 					if (auto s{ sessions.get_if({ 0,id }) })
 						tLast = s->tUpdate > tLast ? s->tUpdate : tLast;
 					if (tLast < grpline)GrpDelete.push_back(id);
-					res << printGroup(id) + "£ººÚÃûµ¥Èº";
+					res << printGroup(id) + "ï¼šé»‘åå•ç¾¤";
 					grp.leave(getMsg("strBlackGroup"));
 				}
 				set<long long> MemberList{ DD::getGroupMemberList(id) };
 				AttrVar authSelf;
 				for (auto eachQQ : MemberList) {
-					if (blacklist->get_qq_danger(eachQQ) > 1) {
+					if (blacklist->get_user_danger(eachQQ) > 1) {
 						if (authSelf.is_null())authSelf = DD::getGroupAuth(id, console.DiceMaid, 1);
 						if (auto authBlack{ DD::getGroupAuth(id, eachQQ, 1) }; authSelf.more(authBlack)) {
 							continue;
 						}
 						else if (authSelf.less(authBlack)) {
 							if (grp.updated() < grpline)GrpDelete.push_back(id);
-							res << printChat(grp) + "£º" + printUser(eachQQ) + "¶Ô·½ÈºÈ¨ÏŞ½Ï¸ß";
-							grp.leave("·¢ÏÖºÚÃûµ¥¹ÜÀíÔ±" + printUser(eachQQ) + "\n" + getMsg("strSelfName") + "½«Ô¤·ÀĞÔÍËÈº");
+							res << grp.print() + "ï¼š" + printUser(eachQQ) + "å¯¹æ–¹ç¾¤æƒé™è¾ƒé«˜";
+							grp.leave("å‘ç°é»‘åå•ç®¡ç†å‘˜" + printUser(eachQQ) + "\n" + getMsg("strSelfName") + "å°†é¢„é˜²æ€§é€€ç¾¤");
 							intCnt++;
 							break;
 						}
 						else if (console["GroupClearLimit"] > 0 && intCnt >= console["GroupClearLimit"]) {
-							if(intCnt == console["GroupClearLimit"])res << "*µ¥´ÎÇåÍËÒÑ´ïÉÏÏŞ*";
-							res << printChat(grp) + "£º" + printUser(eachQQ);
+							if(intCnt == console["GroupClearLimit"])res << "*å•æ¬¡æ¸…é€€å·²è¾¾ä¸Šé™*";
+							res << grp.print() + "ï¼š" + printUser(eachQQ);
 						}
 						else if (console["LeaveBlackQQ"]) {
 							if (grp.updated() < grpline)GrpDelete.push_back(id);
-							res << printChat(grp) + "£º" + printUser(eachQQ);
-							grp.leave("·¢ÏÖºÚÃûµ¥³ÉÔ±" + printUser(eachQQ) + "\n" + getMsg("strSelfName") + "½«Ô¤·ÀĞÔÍËÈº");
+							res << grp.print() + "ï¼š" + printUser(eachQQ);
+							grp.leave("å‘ç°é»‘åå•æˆå‘˜" + printUser(eachQQ) + "\n" + getMsg("strSelfName") + "å°†é¢„é˜²æ€§é€€ç¾¤");
 							intCnt++;
 							break;
 						}
@@ -259,98 +260,96 @@ void clear_group(AttrObject& job) {
 				}
 			}
 		} 		catch (...) {
-			console.log("ÌáĞÑ£º" + getMsg("strSelfName") + "Çå²éºÚÃûµ¥ÈºÁÄÊ±³ö´í£¡", 0b10, printSTNow());
+			console.log("æé†’ï¼š" + getMsg("strSelfName") + "æ¸…æŸ¥é»‘åå•ç¾¤èŠæ—¶å‡ºé”™ï¼", 0b10, printSTNow());
 		}
 		if (intCnt) {
-			MsgNote(job, "ÒÑ°´{strSelfName}ºÚÃûµ¥Çå²éÈºÁÄ" + to_string(intCnt) + "¸ö£º" + res.show(), 0b10);
+			MsgNote(job, "å·²æŒ‰{strSelfName}é»‘åå•æ¸…æŸ¥ç¾¤èŠ" + to_string(intCnt) + "ä¸ªï¼š" + res.show(), 0b10);
 		}
-		else if (job.has("uid")) {
-			reply(job, getMsg("strSelfName") + "°´ºÚÃûµ¥Î´·¢ÏÖ´ıÇå²éÈºÁÄ");
+		else if (job->has("uid")) {
+			reply(job, getMsg("strSelfName") + "æŒ‰é»‘åå•æœªå‘ç°å¾…æ¸…æŸ¥ç¾¤èŠ");
 		}
 	}
 	else if (mode == "preserve") {
 		for (auto& [id, grp] : ChatList) {
-			if (grp.isset("ºöÂÔ") || !grp.getLst() || grp.isset("Ğí¿ÉÊ¹ÓÃ") || grp.isset("ÃâÇå") || grp.isset("Ğ­ÒéÎŞĞ§"))continue;
-			if (grp.isGroup && DD::isGroupAdmin(id, console, false)) {
-				grp.set("Ğí¿ÉÊ¹ÓÃ");
+			if (grp->is("å¿½ç•¥") || !grp->getLst() || grp->is("è®¸å¯ä½¿ç”¨") || grp->is("å…æ¸…") || grp->is("åè®®æ— æ•ˆ"))continue;
+			if (DD::isGroupAdmin(id, console, false)) {
+				grp->set("è®¸å¯ä½¿ç”¨");
 				continue;
 			}
-			time_t tLast{ grp.updated() };
+			time_t tLast{ grp->updated() };
 			if (auto s{ sessions.get_if({ 0,id }) })
 				tLast = s->tUpdate > tLast ? s->tUpdate : tLast;
 			if (tLast < grpline)GrpDelete.push_back(id);
-			res << printChat(grp);
-			grp.leave(getMsg("strPreserve"));
+			res << printChat(*grp);
+			grp->leave(getMsg("strPreserve"));
 			intCnt++;
 			if (console["GroupClearLimit"] > 0 && intCnt >= console["GroupClearLimit"])break;
 			this_thread::sleep_for(3s);
 		}
-		MsgNote(job, "É¸³ı{strSelfName}ÎŞĞí¿ÉÈºÁÄ" + to_string(intCnt) + "¸ö£º" + res.show(), 1);
+		MsgNote(job, "ç­›é™¤{strSelfName}æ— è®¸å¯ç¾¤èŠ" + to_string(intCnt) + "ä¸ªï¼š" + res.show(), 1);
 	}
 	else
-		reply(job, "{ÎŞ·¨Ê¶±ğÉ¸Ñ¡²ÎÊı¡Á}");
+		reply(job, "{æ— æ³•è¯†åˆ«ç­›é€‰å‚æ•°Ã—}");
 	if (!GrpDelete.empty()) {
 		for (const auto& id : GrpDelete) {
 			ChatList.erase(id);
-			if (sessions.has_session({ 0,id }))sessions.end({ 0,id });
+			if (sessions.has_session({ 0,id }))sessions.over({ 0,id });
 		}
-		MsgNote(job, "Çå²éÈºÁÄÊ±»ØÊÕ²»»îÔ¾¼ÇÂ¼" + to_string(GrpDelete.size()) + "Ìõ", 0b1);
+		MsgNote(job, "æ¸…æŸ¥ç¾¤èŠæ—¶å›æ”¶ä¸æ´»è·ƒè®°å½•" + to_string(GrpDelete.size()) + "æ¡", 0b1);
 	}
 }
 void list_group(AttrObject& job) {
-	console.log("±éÀúÈºÁĞ±í", 0, printSTNow());
-	string mode{ job.get_str("list_mode") };
+	console.log("éå†ç¾¤åˆ—è¡¨", 0, printSTNow());
+	string mode{ job->get_str("list_mode") };
 	if (mode.empty()) {
 		reply(job, fmt->get_help("groups_list"));
 	}
 	if (mChatConf.count(mode)) {
 		ResList res;
 		for (auto& [id, grp] : ChatList) {
-			if (grp.isset(mode)) {
-				res << printChat(grp);
+			if (grp->is(mode)) {
+				res << printChat(*grp);
 			}
 		}
-		reply(job, "{self}º¬´ÊÌõ" + mode + "Èº¼ÇÂ¼" + to_string(res.size()) + "Ìõ" + res.head(":").show());
+		reply(job, "{self}å«è¯æ¡" + mode + "ç¾¤è®°å½•" + to_string(res.size()) + "æ¡" + res.head(":").show());
 	}
 	else if (set<long long> grps(DD::getGroupIDList()); mode == "idle") {
 		std::priority_queue<std::pair<time_t, string>> qDiver;
 		time_t tNow = time(NULL);
 		for (auto& [id, grp] : ChatList) {
-			//if (grp.isGroup && !grps.empty() && !grps.count(id))grp.rmLst();
-			if (!grp.getLst())continue;
-			time_t tLast{ grp.updated() };
-			if (grp.isGroup) {
-				if (long long tLMT{ DD::getGroupLastMsg(grp.ID, console.DiceMaid) };
-					tLMT > 0 && tLMT > tLast)tLast = tLMT;
-			}
+			//if (grp->isGroup && !grps.empty() && !grps.count(id))grp->rmLst();
+			if (!grp->getLst())continue;
+			time_t tLast{ grp->updated() };
+			if (long long tLMT{ DD::getGroupLastMsg(grp->ID, console.DiceMaid) };
+				tLMT > 0 && tLMT > tLast)tLast = tLMT;
 			if (!tLast)continue;
 			int intDay{ int((tNow - tLast) / 86400) };
 			qDiver.emplace(intDay, printGroup(id));
 		}
 		if (qDiver.empty()) {
-			reply(job, "{self}ÎŞÈºÁÄ»òÈºĞÅÏ¢¼ÓÔØÊ§°Ü£¡");
+			reply(job, "{self}æ— ç¾¤èŠæˆ–ç¾¤ä¿¡æ¯åŠ è½½å¤±è´¥ï¼");
 			return;
 		}
 		size_t intCnt(0);
 		ResList res;
 		while (!qDiver.empty()) {
-			res << qDiver.top().second + to_string(qDiver.top().first) + "Ìì";
+			res << qDiver.top().second + to_string(qDiver.top().first) + "å¤©";
 			qDiver.pop();
 			if (++intCnt > 32 || qDiver.top().first < 7)break;
 		}
-		reply(job, "{self}ËùÔÚÏĞÖÃÈºÁĞ±í:" + res.show(1));
+		reply(job, "{self}æ‰€åœ¨é—²ç½®ç¾¤åˆ—è¡¨:" + res.show(1));
 	}
-	else if (job["list_mode"] == "size") {
+	else if (job->at("list_mode") == "size") {
 		std::priority_queue<std::pair<time_t, string>> qSize;
 		time_t tNow = time(NULL);
 		for (auto& [id, grp] : ChatList) {
-			if (!grp.getLst() || !grp.isGroup)continue;
+			if (!grp->getLst())continue;
 			GroupSize_t size(DD::getGroupSize(id));
 			if (!size.currSize)continue;
 			qSize.emplace(size.currSize, DD::printGroupInfo(id));
 		}
 		if (qSize.empty()) {
-			reply(job, "{self}ÎŞÈºÁÄ»òÈºĞÅÏ¢¼ÓÔØÊ§°Ü£¡");
+			reply(job, "{self}æ— ç¾¤èŠæˆ–ç¾¤ä¿¡æ¯åŠ è½½å¤±è´¥ï¼");
 		}
 		size_t intCnt(0);
 		ResList res;
@@ -359,11 +358,11 @@ void list_group(AttrObject& job) {
 			qSize.pop();
 			if (++intCnt > 32 || qSize.top().first < 7)break;
 		}
-		reply(job, "{self}ËùÔÚ´óÈºÁĞ±í:" + res.show(1));
+		reply(job, "{self}æ‰€åœ¨å¤§ç¾¤åˆ—è¡¨:" + res.show(1));
 	}
 }
 
-//ĞÄÌø¼ì²â
+//å¿ƒè·³æ£€æµ‹
 void cloud_beat(AttrObject& job) {
 	Cloud::heartbeat();
 	sch.add_job_for(5 * 60, job);
@@ -372,37 +371,37 @@ void cloud_beat(AttrObject& job) {
 void check_update(AttrObject& job) {
 	string ret;
 	if (!Network::GET("http://shiki.stringempty.xyz/DiceVer/update", ret)) {
-		console.log("»ñÈ¡°æ±¾ĞÅÏ¢Ê±³ö´í: \n" + ret, 0);
+		console.log("è·å–ç‰ˆæœ¬ä¿¡æ¯æ—¶å‡ºé”™: \n" + ret, 0);
 		return;
 	}
 	string ver = isDev ? "dev" : "release";
 	try {
 		fifo_json jInfo(fifo_json::parse(ret));
 		if (unsigned short nBuild{ jInfo[ver]["build"] }; nBuild > Dice_Build) {
-			MsgNote(job, "·¢ÏÖDice!µÄ{ver}°æ±¾¸üĞÂ:" + jInfo[ver]["ver"].get<string>() + "(" + to_string(nBuild) + ")\n¸üĞÂËµÃ÷£º" +
-				UTF8toGBK(jInfo[ver]["changelog"].get<string>()), 1);
+			MsgNote(job, "å‘ç°Dice!çš„{ver}ç‰ˆæœ¬æ›´æ–°:" + jInfo[ver]["ver"].get<string>() + "(" + to_string(nBuild) + ")\næ›´æ–°è¯´æ˜ï¼š" +
+				jInfo[ver]["changelog"].get<string>(), 1);
 		}
 	}
 	catch (std::exception& e) {
-		console.log(string("»ñÈ¡¸üĞÂÊ§°Ü:") + e.what(), 0);
+		console.log(string("è·å–æ›´æ–°å¤±è´¥:") + e.what(), 0);
 	}
 	sch.add_job_for(72 * 60 * 60, "check_update");
 }
 void dice_update(AttrObject& job) {
 	string ret;
 	if (!Network::GET("http://shiki.stringempty.xyz/DiceVer/update", ret)) {
-		reply(job, "{self}»ñÈ¡°æ±¾ĞÅÏ¢Ê±³ö´í: \n" + ret);
+		reply(job, "{self}è·å–ç‰ˆæœ¬ä¿¡æ¯æ—¶å‡ºé”™: \n" + ret);
 		return;
 	}
-	string ver{ job.get_str("ver")};
+	string ver{ job->get_str("ver")};
 	if (ver.empty())ver = isDev ? "dev" : "release";
 	try {
 		fifo_json jInfo(fifo_json::parse(ret));
 		if (unsigned short nBuild{ jInfo[ver]["build"] }; nBuild > Dice_Build) {
-			MsgNote(job, "·¢ÏÖDice!µÄ{ver}°æ±¾¸üĞÂ:" + jInfo[ver]["ver"].get<string>() + "(" + to_string(nBuild) + ")\n¸üĞÂËµÃ÷£º" +
-				UTF8toGBK(jInfo[ver]["changelog"].get<string>()), 1);
+			MsgNote(job, "å‘ç°Dice!çš„{ver}ç‰ˆæœ¬æ›´æ–°:" + jInfo[ver]["ver"].get<string>() + "(" + to_string(nBuild) + ")\næ›´æ–°è¯´æ˜ï¼š" +
+				jInfo[ver]["changelog"].get<string>(), 1);
 			if (DD::updateDice(ver, ret)) {
-				MsgNote(job, "¸üĞÂDice!{ver}°æ±¾³É¹¦£¬½«ÔÚÖØÔØºóÓ¦ÓÃ¡Ì", 1);
+				MsgNote(job, "æ›´æ–°Dice!{ver}ç‰ˆæœ¬æˆåŠŸï¼Œå°†åœ¨é‡è½½ååº”ç”¨âˆš", 1);
 				return;
 			}
 			else if(jInfo[ver].count("pkg")) {
@@ -410,25 +409,25 @@ void dice_update(AttrObject& job) {
 				if (Network::GET(pkg, ret)) {
 					std::error_code ec1;
 					Zip::extractZip(ret, dirExe / "Diceki");
-					MsgNote(job, "¸üĞÂDice!{ver}°æ±¾³É¹¦£¬½«ÔÚÖØÔØºóÓ¦ÓÃ¡Ì", 1);
+					MsgNote(job, "æ›´æ–°Dice!{ver}ç‰ˆæœ¬æˆåŠŸï¼Œå°†åœ¨é‡è½½ååº”ç”¨âˆš", 1);
 					return;
 				}
 			}
-			reply(job, "{self}¸üĞÂÊ§°Ü¡Á" + ret);
+			reply(job, "{self}æ›´æ–°å¤±è´¥Ã—" + ret);
 		}
 		else {
-			reply(job, "{self}Î´·¢ÏÖ¸üĞÂ{ver}°æ±¾");
+			reply(job, "{self}æœªå‘ç°æ›´æ–°{ver}ç‰ˆæœ¬");
 		}
 	} catch (std::exception& e) {
-		job.set("err", e.what());
-		reply(job, "{self}»ñÈ¡¸üĞÂÊ§°Ü£¡{err}");
+		job->set("err", e.what());
+		reply(job, "{self}è·å–æ›´æ–°å¤±è´¥ï¼{err}");
 	}
 }
 
-//»ñÈ¡ÔÆ²»Á¼¼ÇÂ¼
+//è·å–äº‘ä¸è‰¯è®°å½•
 void dice_cloudblack(AttrObject& job) {
 	bool isSuccess(false);
-	MsgNote(job, "¿ªÊ¼»ñÈ¡ÔÆ²»Á¼¼ÇÂ¼", 0);
+	MsgNote(job, "å¼€å§‹è·å–äº‘ä¸è‰¯è®°å½•", 0);
 	string strURL("https://shiki.stringempty.xyz/blacklist/checked.json?" + to_string(time(nullptr)));
 	switch (Cloud::DownloadFile(strURL.c_str(), DiceDir / "conf" / "CloudBlackList.json")) {
 	case -1: {
@@ -439,11 +438,11 @@ void dice_cloudblack(AttrObject& job) {
 			isSuccess = true;
 		}
 		else
-			reply(job, "Í¬²½ÔÆ²»Á¼¼ÇÂ¼Í¬²½Ê§°Ü:" + des);
+			reply(job, "åŒæ­¥äº‘ä¸è‰¯è®°å½•åŒæ­¥å¤±è´¥:" + des);
 	}
 		   break;
 	case -2:
-		reply(job, "{Í¬²½ÔÆ²»Á¼¼ÇÂ¼Í¬²½Ê§°Ü!ÎÄ¼şÎ´ÕÒµ½}");
+		reply(job, "{åŒæ­¥äº‘ä¸è‰¯è®°å½•åŒæ­¥å¤±è´¥!æ–‡ä»¶æœªæ‰¾åˆ°}");
 		break;
 	case 0:
 		isSuccess = true;
@@ -452,7 +451,7 @@ void dice_cloudblack(AttrObject& job) {
 		break;
 	}
 	if (isSuccess) {
-		if (job["uid"])MsgNote(job, "Í¬²½ÔÆ²»Á¼¼ÇÂ¼³É¹¦£¬" + getMsg("self") + "¿ªÊ¼¶ÁÈ¡", 1);
+		if (job->has("uid"))MsgNote(job, "åŒæ­¥äº‘ä¸è‰¯è®°å½•æˆåŠŸï¼Œ" + getMsg("self") + "å¼€å§‹è¯»å–", 1);
 		blacklist->loadJson(DiceDir / "conf" / "CloudBlackList.json", true);
 	}
 	if (console["CloudBlackShare"])
@@ -460,15 +459,15 @@ void dice_cloudblack(AttrObject& job) {
 }
 
 void log_put(AttrObject& job) {
-	int cntExec{ job.get_int("retry") };
+	int cntExec{ job->get_int("retry") };
 	if (!cntExec) {
-		DD::debugLog("·¢ËÍlogÎÄ¼ş:" + job.get_str("log_path"));
-		if ((!job.get_ll("gid") || !DD::uploadGroupFile(job.get_ll("gid"), job.get_str("log_path")))
-			&& job.get_ll("uid")) {
-			DD::sendFriendFile(job.get_ll("uid"), job.get_str("log_path"));
+		DD::debugLog("å‘é€logæ–‡ä»¶:" + job->get_str("log_path"));
+		if ((!job->get_ll("gid") || !DD::uploadGroupFile(job->get_ll("gid"), job->get_str("log_path")))
+			&& job->get_ll("uid")) {
+			DD::sendFriendFile(job->get_ll("uid"), job->get_str("log_path"));
 		}
 	}
-	string nameLog{ Base64urlEncode(job.get_str("log_file")) };
+	string nameLog{ Base64urlEncode(job->get_str("log_file")) };
 #ifndef _WIN32
 	auto curl = curl_easy_init();
 	curl_slist* headers = NULL;
@@ -481,7 +480,7 @@ void log_put(AttrObject& job) {
 		CURLFORM_END);
 	curl_formadd(&pFormPost, &pLastElem,
 		CURLFORM_COPYNAME, "file",
-		CURLFORM_FILE, GBKtoLocal(job.get_str("log_path")).c_str(),
+		CURLFORM_FILE, job->get_str("log_path").c_str(),
 		CURLFORM_FILENAME, nameLog.c_str(),
 		CURLFORM_END); 
 	curl_easy_setopt(curl, CURLOPT_URL, "http://dicelogger.s3.ap-southeast-1.amazonaws.com");
@@ -490,26 +489,26 @@ void log_put(AttrObject& job) {
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Network::curlWriteToString);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ret);
 	auto res = curl_easy_perform(curl);
-	if (res != CURLE_OK)job.set("ret", curl_easy_strerror(res));
+	if (res != CURLE_OK)job->set("ret", curl_easy_strerror(res));
 	curl_formfree(pFormPost);
 	curl_easy_cleanup(curl);
 	if (res == CURLE_OK) {
 #else
-	job["ret"] = put_s3_object("dicelogger",
+	job->at("ret") = put_s3_object("dicelogger",
 		nameLog.c_str(),
-		GBKtoLocal(job.get_str("log_path")).c_str(),
+		UTF8toGBK(job->get_str("log_path")).c_str(),
 		"ap-southeast-1");
-	if (job["ret"] == "SUCCESS") {
+	if (job->at("ret") == "SUCCESS") {
 #endif //_Win32
-		job["log_file"] = nameLog;
-		job["log_url"] = "https://logpainter.kokona.tech/?s3=" + nameLog;
+		job->set("log_file",nameLog);
+		job->set("log_url", "https://logpainter.kokona.tech/?s3=" + nameLog);
 		reply(job, "{strLogUpSuccess}");
 	}
 	else if (++cntExec > 2) {
 		reply(job, "{strLogUpFailureEnd}");
 	}
 	else {
-		job.inc("retry");
+		job->inc("retry");
 		reply(job, "{strLogUpFailure}");
 		console.log(getMsg("strLogUpFailure", job), 1);
 		sch.add_job_for(2 * 60, job);
@@ -517,7 +516,7 @@ void log_put(AttrObject& job) {
 }
 
 string print_master() {
-	if (!console)return "£¨ÎŞÖ÷£©";
+	if (!console)return "ï¼ˆæ— ä¸»ï¼‰";
 	return printUser(console);
 }
 
@@ -533,7 +532,7 @@ string list_dice_sister() {
 	else {
 		list.erase(console.DiceMaid);
 		ResList li;
-		li << printUser(console.DiceMaid) + "µÄ½ãÃÃ÷»:";
+		li << printUser(console.DiceMaid) + "çš„å§å¦¹éª°:";
 		for (auto dice : list) {
 			li << printUser(dice);
 		}

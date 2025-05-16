@@ -1,7 +1,7 @@
 #pragma once
 /*
- * ◊ ‘¥ƒ£øÈ
- * Copyright (C) 2019-2022 String.Empty
+ * ËµÑÊ∫êÊ®°Âùó
+ * Copyright (C) 2019-2024 String.Empty
  */
 
 #include <utility>
@@ -9,15 +9,13 @@
 #include <regex>
 #include "yaml-cpp/node/node.h"
 #include "SHKQuerier.h"
-#include "DiceSchedule.h"
-#include "DiceMsgReply.h"
 #include "GlobalVar.h"
+#include "DiceRule.h"
 #ifndef __ANDROID__
 #include "DiceGit.h"
 #endif //ANDROID
+#include "CharacterCard.h"
 using std::variant;
-template<typename T>
-using ptr = std::shared_ptr<T>;
 namespace fs = std::filesystem;
 
 class DiceEvent;
@@ -42,7 +40,7 @@ struct Version {
 			if (match.size() > 4 && match[4].length())build = stoi(match[4].str());
 		}
 		catch (std::exception& e) {
-			console.log("mod∞Ê±æ’˝‘Ú∆•≈‰ ß∞‹!" + string(e.what()), 1);
+			console.log("modÁâàÊú¨Ê≠£ÂàôÂåπÈÖçÂ§±Ë¥•!" + string(e.what()), 1);
 		}
 	}
 	bool operator<(const Version& other)const {
@@ -56,7 +54,7 @@ struct Version {
 class DiceEventTrigger {
 	enum class Mode { Nil, Clock, Cycle, Trigger };
 	enum class ActType { Nil, Lua };
-	//Ωˆ÷ß≥÷lua
+	//‰ªÖÊîØÊåÅlua
 	ActType type{ ActType::Nil };
 	string script;
 public:
@@ -118,12 +116,20 @@ public:
 	string desc()const;
 	string detail()const;
 private:
-	dict<>helpdoc;
-	dict<DiceSpeech>speech;
-	dict_ci<string>scripts;
+	dict_ci<DiceRule> rules;
+	dict_ci<CardTemp> card_models;
+	dict_ci<> model_alias;
+	dict_ci<> helpdoc;
+	dict_ci<DiceSpeech>speech;
+	//native path of .lua
+	dict_ci<string>lua_scripts;
+	//native path of .js
+	dict_ci<string>js_scripts;
+	//path of .py
+	dict_ci<std::filesystem::path>py_scripts;
 	vector<fs::path>luaFiles;
 	dict<ptr<DiceMsgReply>>reply_list;
-	AttrObjects events;
+	dict<AnysTable> events;
 	size_t cntImage{ 0 };
 	size_t cntAudio{ 0 };
 };
@@ -134,9 +140,10 @@ class DiceModManager {
 	dict_ci<ptr<DiceMod>> modList;
 	vector<ptr<DiceMod>> modOrder;
 	vector<string> sourceList = {
-		"https://raw.sevencdn.com/Dice-Developer-Team/DiceModIndex/main/",
-		"https://raw.githubusercontent.com/Dice-Developer-Team/DiceModIndex/main/",
+		"https://raw.gitmirror.com/Dice-Developer-Team/DiceModIndex/main/index",
+		"https://mirror.ghproxy.com/https://raw.githubusercontent.com/Dice-Developer-Team/DiceModIndex/main/index",
 		"https://gitee.com/diceki/DiceModIndex/raw/main/",
+		//"https://raw.sevencdn.com/Dice-Developer-Team/DiceModIndex/main/index",
 	};
 	//custom
 	dict_ci<ptr<DiceMsgReply>> plugin_reply;
@@ -144,11 +151,13 @@ class DiceModManager {
 	//global
 	dict_ci<> global_helpdoc;
 	DiceReplyUnit final_reply;
-	dict_ci<string> global_scripts;
+	dict_ci<string> global_lua_scripts;
+	dict_ci<string> global_js_scripts;
+	dict_ci<std::filesystem::path> global_py_scripts;
 	dict_ci<AttrVars> taskcall;
-	AttrObjects global_events; //events by id
+	dict<AttrObject> global_events; //events by id
 	//Event
-	unordered_set<string> cycle_events; //÷ÿ‘ÿ ±Œ®“ª–‘ºÏ≤È
+	unordered_set<string> cycle_events; //ÈáçËΩΩÊó∂ÂîØ‰∏ÄÊÄßÊ£ÄÊü•
 	multidict_ci<AttrObject> hook_events;
 
 	WordQuerier querier;
@@ -182,8 +191,9 @@ public:
 	void mod_update(DiceEvent&);
 	void turn_over(size_t);
 	void uninstall(const string& name);
+	bool reorder(size_t, size_t);
 
-	string format(const string&, AttrObject = {},
+	AttrVar format(const string&, const AttrObject & = {},
 		bool isTrust = true,
 		const dict_ci<string>& = {}) const;
 	string msg_get(const string& key)const;
@@ -191,7 +201,8 @@ public:
 	void msg_edit(const string& key, const string& val);
 
 	fifo_dict_ci<size_t>cntHelp;
-	[[nodiscard]] string get_help(const string&, AttrObject = {}) const;
+	[[nodiscard]] string get_help(const string&, const AttrObject& = {}) const;
+	[[nodiscard]] string prev_help(const string&, const AttrObject& = {}) const;
 	void _help(DiceEvent*);
 	void set_help(const string&, const string&);
 	void rm_help(const string&);
@@ -199,10 +210,11 @@ public:
 	void call_cycle_event(const string&);
 	void call_clock_event(const string&);
 	//return if event is blocked
-	bool call_hook_event(AttrObject);
+	bool call_hook_event(const AttrObject&);
 
 	bool listen_order(DiceEvent* msg) { return final_reply.listen(msg, 1); }
 	bool listen_reply(DiceEvent* msg) { return final_reply.listen(msg, 2); }
+	bool listen_game(DiceEvent* msg) { return final_reply.listen(msg, 4); }
 	string list_reply(int type)const;
 	void set_reply(const string&, ptr<DiceMsgReply> reply);
 	bool del_reply(const string&);
@@ -211,8 +223,12 @@ public:
 	void reply_show(DiceEvent*);
 	bool call_task(const string&);
 
-	bool script_has(const string& name)const { return global_scripts.count(name); }
-	string script_path(const string& name)const;
+	bool has_lua(const string& name)const { return global_lua_scripts.count(name); }
+	bool has_js(const string& name)const { return global_js_scripts.count(name); }
+	bool has_py(const string& name)const { return global_py_scripts.count(name); }
+	string lua_path(const string& name)const;
+	string js_path(const string& name)const;
+	std::optional<std::filesystem::path> py_path(const string& name)const;
 
 	void loadPlugin(ResList& res);
 	int load(ResList&);
@@ -223,3 +239,5 @@ public:
 };
 
 extern std::shared_ptr<DiceModManager> fmt;
+void call_event(const ptr<AnysTable>& eve, const AttrObject& action);
+const std::string getMsg(const std::string& key, const AttrObject& tmp = {});

@@ -1,7 +1,7 @@
 #pragma once
 /**
- * ×Ö·û´®¸¨Öúº¯Êý
- * Copyright (C) 2019-2022 String.Empty
+ * String helper
+ * Copyright (C) 2019-2024 String.Empty
  */
 
 #include <string>
@@ -16,6 +16,7 @@ using std::to_string;
 using std::vector;
 
 #define CP_GBK (936)
+
 constexpr auto space_char{ " \t\r\n" };
 
 bool isNumeric(const string&);
@@ -25,6 +26,7 @@ template<typename F>
 typename std::enable_if_t<std::is_floating_point_v<F>, string>
 toString(F num, unsigned short scale = 2, bool align = false) 
 {
+    if (num == (long long)num)return to_string((long long)num);
     string strNum{ to_string(num) };
     size_t dot(strNum.find('.') + scale + 1);
     if (align)return strNum.substr(0, dot);
@@ -46,7 +48,7 @@ int count_char(const string& s, char ch);
 vector<string> getLines(const string& s, char delim = '\n');
 vector<string> split(const string&, const string&);
 string splitOnce(string& str, const string& sep = ".");
-fifo_dict<string> splitPairs(const string&, char delim = '=', char br = '\n');
+fifo_dict<string> splitPairs(const std::string&, char delim = '=', char br = '\n');
 
 template<typename Con>
 void splitID(const string& str , Con& list) {
@@ -68,7 +70,7 @@ void splitID(const string& str , Con& list) {
 #endif
 }
 
-string convert_w2a(const char16_t* wch);
+string convert_w2a(const char16_t* wch, unsigned int = 65001);
 
 u16string convert_a2w(const char* ch);
 

@@ -1,9 +1,14 @@
 {
   "name": "dice",
-  "version-string": "2.6.5",
+  "version-string": "2.7.0",
   "dependencies": [
     "lua",
     "yaml-cpp",
+    {
+      "name": "python3",
+      "platform" : "!android"
+    },
+    "tinyxml2",
     "openssl",
     {
       "name": "libgit2",
@@ -15,10 +20,6 @@
       "platform" : "windows",
       "default-features": false,
       "features": [ "s3" ]
-    },
-    {
-      "name": "openssl",
-      "platform" : "!windows"
     },
     {
       "name": "curl",

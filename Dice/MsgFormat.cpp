@@ -7,7 +7,7 @@
  * |_______/   |________|  |________|  |________|  |__|
  *
  * Dice! QQ Dice Robot for TRPG
- * Copyright (C) 2018-2019 w4123ËÝä§
+ * Copyright (C) 2018-2019 w4123æº¯æ´„
  *
  * This program is free software: you can redistribute it and/or modify it under the terms
  * of the GNU Affero General Public License as published by the Free Software Foundation,
@@ -30,9 +30,7 @@
 #include "CardDeck.h"
 using std::string;
 
-std::unordered_map<string, GobalTex> strFuncs{
-	{"master_QQ",print_master},
-	{"master_ID",print_master},
+std::unordered_map<string, GlobalTex> strFuncs{
 	{"list_extern_deck",list_extern_deck},
 	{"list_all_deck",list_deck},
 	{"list_reply_deck",[]() {return fmt->list_reply(2); }},
@@ -48,9 +46,9 @@ string strip(std::string origin)
 		{
 			origin.erase(origin.begin());
 		}
-		else if (origin.substr(0, 2) == "£¡" || origin.substr(0, 2) == "¡£" || origin.substr(0, 2) == "£®")
+		else if (auto dot{ origin.substr(0, 3) }; dot == "ï¼" || dot == "ã€‚" || dot == "ï¼Ž")
 		{
-			origin.erase(origin.begin(), origin.begin() + 2);
+			origin.erase(origin.begin(), origin.begin() + 3);
 		}
 		else return origin;
 	}
@@ -88,12 +86,12 @@ std::string ResList::show(size_t limPage)const {
 	}
 	for (auto it = vRes.begin(); it != vRes.end(); it++) {
 		lenItem = wstrlen(it->c_str());
-		//³¬¹ýÉÏÏÞºó·ÖÒ³
+		//è¶…è¿‡ä¸Šé™åŽåˆ†é¡µ
 		if (lenPage + lenItem > intPageLen && !s.empty()) {
 			if (limPage && limPage <= cntPage + 1)
 				return s;
-			if (cntPage++ == 0)s = "\f[µÚ" + std::to_string(cntPage++) + "Ò³]" + (strHead.empty() ? "\n" : "") + s;
-			s += "\f[µÚ" + std::to_string(cntPage) + "Ò³]\n" + *it;
+			if (cntPage++ == 0)s = "\f[ç¬¬" + std::to_string(cntPage++) + "é¡µ]" + (strHead.empty() ? "\n" : "") + s;
+			s += "\f[ç¬¬" + std::to_string(cntPage) + "é¡µ]\n" + *it;
 			lenPage = 0;
 		}
 		else if (it == vRes.begin())s = strHead + *it;
@@ -111,4 +109,12 @@ std::string listDeck(const std::vector<std::string>& v)
 		list << val;
 	}
 	return list.show();
+}
+std::string listDeck(const VarArray& v)
+{
+	ShowList list;
+	for (auto& val : v) {
+		list << val;
+	}
+	return list.show("\n|");
 }

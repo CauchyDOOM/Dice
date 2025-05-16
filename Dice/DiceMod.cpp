@@ -7,8 +7,8 @@
  * |_______/   |________|  |________|  |________|  |__|
  *
  * Dice! QQ Dice Robot for TRPG
- * Copyright (C) 2018-2021 w4123À›‰ß
- * Copyright (C) 2019-2022 String.Empty
+ * Copyright (C) 2018-2021 w4123Ê∫ØÊ¥Ñ
+ * Copyright (C) 2019-2024 String.Empty
  *
  * This program is free software: you can redistribute it and/or modify it under the terms
  * of the GNU Affero General Public License as published by the Free Software Foundation,
@@ -21,6 +21,7 @@
  * You should have received a copy of the GNU Affero General Public License along with this
  * program. If not, see <http://www.gnu.org/licenses/>.
  */
+#include <regex>
 #include "DiceMod.h"
 #include "GlobalVar.h"
 #include "ManagerSystem.h"
@@ -28,25 +29,29 @@
 #include "DiceFile.hpp"
 #include "DiceEvent.h"
 #include "DiceLua.h"
+#include "DiceJS.h"
+#include "DicePython.h"
 #include "DiceMsgReply.h"
 #include "DiceSelfData.h"
 #include "RandomGenerator.h"
 #include "DDAPI.h"
-#include "yaml-cpp/yaml.h"
-#include <regex>
+#include "DiceZip.h"
+#include "DiceNetwork.h"
+#include "DiceYaml.h"
+#include "DiceFormatter.h"
 
 std::shared_ptr<DiceModManager> fmt;
 
 DiceSpeech::DiceSpeech(const YAML::Node& yaml) {
-	if (yaml.IsScalar())speech = UTF8toGBK(yaml.Scalar());
+	if (yaml.IsScalar())speech = yaml.Scalar();
 	else if (yaml.IsSequence()) {
-		speech = UTF8toGBK(yaml.as<vector<string>>());
+		speech = yaml.as<vector<string>>();
 	}
 }
 DiceSpeech::DiceSpeech(const fifo_json& j) {
-	if (j.is_string())speech = UTF8toGBK(j.get<string>());
+	if (j.is_string())speech = j.get<string>();
 	else if (j.is_array()) {
-		speech = UTF8toGBK(j.get<vector<string>>());
+		speech = j.get<vector<string>>();
 	}
 }
 string DiceSpeech::express()const {
@@ -54,12 +59,12 @@ string DiceSpeech::express()const {
 		return std::get<string>(speech);
 	}
 	else if (const auto p{ std::get_if<vector<string>>(&speech) }) {
-		return p->at(RandomGenerator::Randint(0, p->size() - 1));
+		return p->at((size_t)RandomGenerator::Randint(0, p->size() - 1));
 	}
 	return {};
 }
 
-dict_ci<DiceSpeech> transpeech{
+static dict_ci<DiceSpeech> transpeech{
 	{ "br", "\n" },
 	{ "sp"," " },
 	{ "amp","&" },
@@ -87,8 +92,8 @@ string DiceModManager::list_mod()const {
 			+ (mod->title.empty() || mod->title == mod->name ? mod->name
 				: (mod->title + "/" + mod->name))
 			+ (mod->active
-				? (mod->loaded ? " °Ã" : " ?")
-				: " °¡");
+				? (mod->loaded ? " ‚àö" : " ?")
+				: " √ó");
 	}
 	return list.show();
 }
@@ -130,7 +135,7 @@ bool DiceModManager::mod_clone(const string& name, const string& repo) {
 #endif
 bool DiceModManager::mod_dlpkg(const string& name, const string& pkg, string& des) {
 	if (!Network::GET(pkg, des)) {
-		des = "\nœ¬‘ÿ ß∞‹(" + pkg + "):" + des;
+		des = "\n‰∏ãËΩΩÂ§±Ë¥•(" + pkg + "):" + des;
 		return false;
 	}
 	std::error_code ec1;
@@ -141,7 +146,7 @@ bool DiceModManager::mod_dlpkg(const string& name, const string& pkg, string& de
 			fs::copy(desc, pathJson);
 		}
 		else {
-			des = "\npkgΩ‚—πŒﬁŒƒº˛" + name + ".json";
+			des = "\npkg don't exist " + name + ".json";
 			return false;
 		}
 	}
@@ -167,14 +172,17 @@ void DiceModManager::mod_install(DiceEvent& msg) {
 		return;
 	}
 	for (auto& url : sourceList) {
-		if (!Network::GET(url + name, desc)) {
-			msg.set("err", msg.get_str("err") + "\n∑√Œ " + url + name + " ß∞‹:" + desc);
+		if (!Network::GET(url + name + "/descriptor.json", desc)) {
+			msg.set("err", msg.get_str("err") + "\nËÆøÈóÆ" + url + name + "Â§±Ë¥•:" + desc);
 			continue;
 		}
 		try {
 			if (desc.find("404") == 0)continue;
 			fifo_json j = fifo_json::parse(desc);
-			//todo: dice_build check
+			if (j.count("dice_build") && j["dice_build"] > Dice_Build) {
+				msg.set("err", msg.get_str("err") + "\nDiceÁâàÊú¨‰∏çÊª°Ë∂≥Ë¶ÅÊ±Ç(" + to_string(j["dice_build"]) + "):" + url);
+				continue;
+			}
 #ifndef __ANDROID__
 			if (j.count("repo") && !j["repo"].empty()) {
 				string repo{ j["repo"] };
@@ -184,7 +192,7 @@ void DiceModManager::mod_install(DiceEvent& msg) {
 					return;
 				}
 				else {
-					msg.set("err", msg.get_str("err") + "\ngit clone ß∞‹:" + repo);
+					msg.set("err", msg.get_str("err") + "\ngit cloneÂ§±Ë¥•:" + repo);
 					continue;
 				}
 			}
@@ -198,14 +206,14 @@ void DiceModManager::mod_install(DiceEvent& msg) {
 				}
 				else msg.set("err", msg.get_str("err") + des);
 			}
-			msg.set("err", msg.get_str("err") + "\nŒ¥–¥≥ˆmodµÿ÷∑(repo/pkg):" + url + name);
+			msg.set("err", msg.get_str("err") + "\nÊú™ÂÜôÂá∫modÂú∞ÂùÄ(repo/pkg):" + url + name);
 		}
 		catch (std::exception& e) {
-			console.log("∞≤◊∞" + url + name + " ß∞‹:" + e.what(), 0b01);
+			console.log("ÂÆâË£Ö" + url + name + "Â§±Ë¥•:" + e.what(), 0b01);
 			msg.set("err", msg.get_str("err") + "\n" + url + name + ":" + e.what());
 		}
 	}
-	if (!msg.has("err"))msg.set("err", "\nŒ¥’“µΩMod‘¥");
+	if (!msg.has("err"))msg.set("err", "\nÊú™ÊâæÂà∞ModÊ∫ê");
 	msg.replyMsg("strModInstallErr");
 }
 void DiceModManager::mod_reinstall(DiceEvent& msg) {
@@ -217,7 +225,7 @@ void DiceModManager::mod_reinstall(DiceEvent& msg) {
 	msg.set("ex_ver", mod->ver.exp);
 	for (auto& url : sourceList) {
 		if (!Network::GET(url + name, desc)) {
-			msg.set("err", msg.get_str("err") + "\n∑√Œ " + url + name + " ß∞‹:" + desc);
+			msg.set("err", msg.get_str("err") + "\nËÆøÈóÆ" + url + name + "Â§±Ë¥•:" + desc);
 			continue;
 		}
 		try {
@@ -233,7 +241,7 @@ void DiceModManager::mod_reinstall(DiceEvent& msg) {
 				modList[name] = mod;
 				modOrder[idx] = mod;
 				if (!mod->loaded) {
-					msg.set("err", msg.get_str("err") + "\ngit clone ß∞‹:" + repo);
+					msg.set("err", msg.get_str("err") + "\ngit cloneÂ§±Ë¥•:" + repo);
 					continue;
 				}
 				save();
@@ -247,14 +255,14 @@ void DiceModManager::mod_reinstall(DiceEvent& msg) {
 				string pkg{ j["pkg"] };
 				std::string des;
 				if (!Network::GET(pkg, des)) {
-					msg.set("err", msg.get_str("err") + "\nœ¬‘ÿ ß∞‹(" + pkg + "):" + des);
+					msg.set("err", msg.get_str("err") + "\n‰∏ãËΩΩÂ§±Ë¥•(" + pkg + "):" + des);
 					continue;
 				}
 				fs::remove_all(DiceDir / "mod" / name, ec1);
 				Zip::extractZip(des, DiceDir / "mod");
 				auto pathJson{ DiceDir / "mod" / (name + ".json") };
 				if (!fs::exists(pathJson)) {
-					msg.set("err", msg.get_str("err") + "\npkgΩ‚—πŒﬁŒƒº˛" + name + ".json");
+					msg.set("err", msg.get_str("err") + "\npkgËß£ÂéãÊó†Êñá‰ª∂" + name + ".json");
 					continue;
 				}
 				string err;
@@ -270,13 +278,13 @@ void DiceModManager::mod_reinstall(DiceEvent& msg) {
 					continue;
 				}
 			}
-			msg.set("err", msg.get_str("err") + "\nŒ¥–¥≥ˆmodµÿ÷∑(repo/pkg):" + url + name);
+			msg.set("err", msg.get_str("err") + "\nÊú™ÂÜôÂá∫modÂú∞ÂùÄ(repo/pkg):" + url + name);
 		} catch (std::exception& e) {
-			console.log("∞≤◊∞" + url + name + " ß∞‹:" + e.what(), 0b01);
+			console.log("ÂÆâË£Ö" + url + name + "Â§±Ë¥•:" + e.what(), 0b01);
 			msg.set("err", msg.get_str("err") + "\n" + url + name + ":" + e.what());
 		}
 	}
-	if (!msg.has("err"))msg.set("err", "\nŒ¥’“µΩMod‘¥");
+	if (!msg.has("err"))msg.set("err", "\nÊú™ÊâæÂà∞ModÊ∫ê");
 	msg.replyMsg("strModInstallErr");
 }
 void DiceModManager::mod_update(DiceEvent& msg) {
@@ -304,8 +312,8 @@ void DiceModManager::mod_update(DiceEvent& msg) {
 	string desc;
 	for (auto& url : sourceList) {
 		if (!Network::GET(url + name, desc)) {
-			console.log("∑√Œ " + url + name + " ß∞‹:" + desc, 0);
-			msg.set("err", msg.get_str("err") + "\n∑√Œ " + url + name + " ß∞‹:" + desc);
+			console.log("ËÆøÈóÆ" + url + name + "Â§±Ë¥•:" + desc, 0);
+			msg.set("err", msg.get_str("err") + "\nËÆøÈóÆ" + url + name + "Â§±Ë¥•:" + desc);
 			continue;
 		}
 		try {
@@ -315,7 +323,7 @@ void DiceModManager::mod_update(DiceEvent& msg) {
 			if (mod->ver < ver) {
 				string pkg{ j["pkg"] };
 				if (!Network::GET(pkg, des)) {
-					msg.set("err", msg.get_str("err") + "\nœ¬‘ÿ ß∞‹(" + pkg + "):" + des);
+					msg.set("err", msg.get_str("err") + "\n‰∏ãËΩΩÂ§±Ë¥•(" + pkg + "):" + des);
 					continue;
 				}
 				std::error_code ec1;
@@ -323,7 +331,7 @@ void DiceModManager::mod_update(DiceEvent& msg) {
 				Zip::extractZip(des, DiceDir / "mod");
 				auto pathJson{ DiceDir / "mod" / (name + ".json") };
 				if (!fs::exists(pathJson)) {
-					msg.set("err", msg.get_str("err") + "\npkgΩ‚—πŒﬁŒƒº˛" + name + ".json");
+					msg.set("err", msg.get_str("err") + "\npkgËß£ÂéãÊó†Êñá‰ª∂" + name + ".json");
 					continue;
 				}
 				string err;
@@ -339,14 +347,14 @@ void DiceModManager::mod_update(DiceEvent& msg) {
 				}
 			}
 			else {
-				msg.set("err", "Œﬁ∏¸–¬”⁄" + mod->ver.exp + "µƒ∞Ê±æ!");
+				msg.set("err", "Êó†Êõ¥Êñ∞‰∫é" + mod->ver.exp + "ÁöÑÁâàÊú¨!");
 			}
 		} catch (std::exception& e) {
-			console.log("∞≤◊∞" + url + name + " ß∞‹:" + e.what(), 0b01);
+			console.log("ÂÆâË£Ö" + url + name + "Â§±Ë¥•:" + e.what(), 0b01);
 			msg.set("err", msg.get_str("err") + "\n" + url + name + ":" + e.what());
 		}
 	}
-	if (!msg.has("err"))msg.set("err", "\nŒ¥’“µΩMod‘¥");
+	if (!msg.has("err"))msg.set("err", "\nÊú™ÊâæÂà∞ModÊ∫ê");
 	msg.replyMsg("strModInstallErr");
 }
 
@@ -365,6 +373,18 @@ void DiceModManager::uninstall(const string& modName) {
 	remove_all(mod->pathDir);
 	build();
 }
+bool DiceModManager::reorder(size_t oldIdx, size_t newIdx) {
+	if (oldIdx == newIdx || (oldIdx > newIdx ? oldIdx: newIdx) >= modOrder.size())return false;
+	auto mod{ modOrder[oldIdx] };
+	mod->index = newIdx;
+	int step{ oldIdx > newIdx ? -1 : 1 };
+	while (oldIdx != newIdx) {
+		(modOrder[oldIdx] = modOrder[oldIdx + step])->index = oldIdx;
+		oldIdx += step;
+	}
+	modOrder[newIdx] = mod;
+	return true;
+}
 void DiceModManager::turn_over(size_t idx) {
 	std::lock_guard lock(ModMutex);
 	if (idx >= modOrder.size())return;
@@ -373,232 +393,26 @@ void DiceModManager::turn_over(size_t idx) {
 	save();
 	build();
 }
-static enumap<string> methods{ "var","print","help","sample","case","vary","grade","at","ran","wait" };
-enum class FmtMethod { Var, Print, Help, Sample, Case, Vary, Grade, At, Ran, Wait};
-struct ParseNode {
-	string leaf;
-	size_t pos;
-	char token;
-	ParseNode(const string& s, size_t p, char t) :leaf(s), pos(p), token(t) {}
-	shared_ptr<ParseNode> next;
-	shared_ptr<ParseNode> first_kid;
-	//shared_ptr<ParseNode> last_kid;
-};
-class Parser {
-	//string exp;
-	AttrObject context;
-	bool isTrust{ true };
-	dict_ci<string> dict;
-	shared_ptr<ParseNode> root;
-public:
-	Parser(const string& s, const AttrObject& obj, bool t = true, const dict_ci<string>& con = {})
-		:root(std::make_shared<ParseNode>(s, 0, char(0xAA))), context(obj), isTrust(t), dict(con) {
-		string& exp{ root->leaf };
-		auto parent{ root };
-		char chSign[3]{ char(0xAA),char(0xAA),'\0' };
-		size_t preL{ 0 }, lastL{ 0 }, lastR{ 0 }; 
-		while ((lastR = exp.find('}', ++lastR)) != string::npos
-			&& (lastL = exp.rfind('{', lastR)) != string::npos) {
-			string key;
-			//¿®∫≈«∞º”°Æ\°Ø±Ì æ∏√¿®∫≈ƒ⁄»›≤ª◊™“Â
-			if (exp[lastR - 1] == '\\') {
-				lastL = lastR - 1;
-				key = "}";
-			}
-			else if (lastL > 0 && exp[lastL - 1] == '\\') {
-				lastR = lastL--;
-				key = "{";
-			}
-			else key = exp.substr(lastL + 1, lastR - lastL - 1);
-			auto node{ std::make_shared<ParseNode>(key,lastL,++chSign[1]) };
-			if (!root->first_kid){
-				parent = root->first_kid = node;
-			}
-			else if (lastL >= preL) {
-				parent = parent->next = node;
-			}
-			else if (lastL < root->first_kid->pos) {
-				node->first_kid = root->first_kid;
-				parent = root->first_kid = node;
-			}
-			else {
-				parent = root->first_kid;
-				while (parent->next) {
-					if (parent->next->pos < lastL) {
-						parent = parent->next;
-					}
-					else {
-						node->first_kid = parent->next;
-						parent = parent->next = node;
-						break;
-					}
-				}
-			}
-			exp.replace(lastL, lastR - lastL + 1, chSign);
-			lastR = (preL = lastL) + 1;
-		}
-		if(root->first_kid)format_token(exp, root);
-	}
-	AttrVar format_token(string& s, shared_ptr<ParseNode> it) {
-		char chSign[3]{ char(0xAA),char(0xAA),'\0' };
-		size_t pos{ 0 };
-		it = it->first_kid;
-		while (it) {
-			chSign[1] = it->token;
-			if ((pos = s.find(chSign)) != string::npos) {
-				string& key{ it->leaf };
-				AttrVar val{ "{" + key + "}" };
-				if (key == "{" || key == "}") {
-					val = key;
-				}
-				else if (context.has(key)) {
-					if (key == "res")val = fmt->format(context.print(key), context, isTrust, dict);
-					else val = context.print(key);
-				}
-				else if (AttrVar res{ getContextItem(context, key, isTrust) }) {
-					val = res;
-				}
-				else if (auto cit = dict.find(key); cit != dict.end()) {
-					val = fmt->format(cit->second, context, isTrust, dict);
-				}
-				//”Ôæ≥”≈œ»”⁄»´æ÷
-				else if (auto sp = fmt->global_speech.find(key); sp != fmt->global_speech.end()) {
-					val = fmt->format(sp->second.express(), context, isTrust, dict);
-					if (!isTrust && val == "\f")val = "\f< ";
-				}
-				else if (size_t colon{ key.find(':') }; colon != string::npos) {
-					string method{ key.substr(0,colon) };
-					string para{ key.substr(colon + 1) };
-					if (methods.count(method))switch ((FmtMethod)methods[method]) {
-						case FmtMethod::Var:{
-							auto posQ = para.find('?'), posE = para.find('=');
-							if (posQ < posE) {
-								auto [field, exp] = readini<string, string>(para, '?');
-								field = format_token(field, it);
-								context.set(field, val = (exp[0] == char(0xAA)) ? format_token(exp, it) : AttrVar::parse(exp));
-							}
-							else {
-								auto exps{ splitPairs(para,'=','&') };
-								for (auto& [field, exp] : exps) {
-									if (exp.empty())context.set(field);
-									else context.set(field, (exp[0] == char(0xAA)) ? format_token(exp, it) : AttrVar::parse(exp));
-								}
-								val.des();
-							}
-						} break;
-						case FmtMethod::Help:
-							val = fmt->get_help(format_token(para, it).to_str(), context);
-							break;
-						case FmtMethod::Sample:
-							if (vector<string> samples{ split(para,"|") }; samples.empty())val = "";
-							else
-								val = samples[RandomGenerator::Randint(0, samples.size() - 1)];
-							break;
-						case FmtMethod::At:
-							if (format_token(para, it) == "self") {
-								val = "[CQ:at,qq=" + to_string(console.DiceMaid) + "]";
-							}
-							else if (!para.empty()) {
-								val = "[CQ:at,qq=" + para + "]";
-							}
-							else if (context.has("uid")) {
-								val = "[CQ:at,qq=" + context.get_str("uid") + "]";
-							}
-							else val.des();
-							break;
-						case FmtMethod::Print:
-							if (auto paras{ splitPairs(para,'=','&') }; paras.count("uid")) {
-								if (isTrust && paras["uid"].empty())val = printUser(context.get_ll("uid"));
-								else val = printUser(AttrVar(paras["uid"]).to_ll());
-							}
-							else if (paras.count("gid")) {
-								if (isTrust && paras["gid"].empty())val = printGroup(context.get_ll("gid"));
-								else val = printGroup(AttrVar(paras["gid"]).to_ll());
-							}
-							else if (paras.count("master")) {
-								val = console ? printUser(console) : "[Œﬁ÷˜]";
-							}
-							else val.des();
-							break;
-						case FmtMethod::Case:
-						case FmtMethod::Vary: {
-							auto [item, strVary] = readini<string, string>(para, '?');
-							auto paras{ splitPairs(strVary,'=','&') };
-							auto itemVal{ getContextItem(context, format_token(item, it), isTrust) };
-							if (auto it{ paras.find(itemVal.print()) }; it != paras.end()
-								|| (it = paras.find("else")) != paras.end()) {
-								val = it->second;
-							}
-							else val.des();
-						}break;
-						case FmtMethod::Grade: {
-							auto [item, strVary] = readini<string, string>(para, '?');
-							auto paras{ splitPairs(strVary,'=','&') };
-							auto itemVal{ getContextItem(context, format_token(item, it), isTrust) };
-							grad_map<double, string>grade;
-							for (auto& [step, value] : paras) {
-								if (step == "else")grade.set_else(value);
-								else if (isNumeric(step))
-									grade.set_step(stod(step), value);
-								else if (auto stepVal{ getContextItem(context,step, isTrust) }; stepVal.is_numberic())
-									grade.set_step(stepVal.to_num(), value);
-							}
-							if (itemVal.is_numberic())val = grade[itemVal.to_num()];
-							else val = grade.get_else();
-						}break;
-						case FmtMethod::Ran: {
-							auto [min, max] = readini<string, string>(para, '~');
-							int l = AttrVar::parse(format_token(min, it)).to_int(),
-								r = AttrVar::parse(format_token(max, it)).to_int();
-							val = (l == r) ? to_string(l)
-								: (l < r) ? to_string(RandomGenerator::Randint(l, r))
-								: to_string(RandomGenerator::Randint(r, l));
-						}break;
-						case FmtMethod::Wait:
-							if (long long ms{ AttrVar::parse(format_token(para, it)).to_ll() }; 0 < ms && ms < 600000)
-								std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-							val.des();
-							break;
-						default:
-							break;
-						}
-				}
-				else if (auto func = strFuncs.find(key); func != strFuncs.end()) {
-					val = func->second();
-				}
-				if (s == chSign) {
-					s = val;
-					return val;
-				}
-				else if (val.is_null()) s.erase(pos, 2);
-				else s.replace(pos, 2, val.print());
-			}
-			format_token(s, it);
-			it = it->next;
-		}
-		return s;
-	}
-	operator string() {
-		return root->leaf;
-	}
-};
+const std::string getMsg(const std::string& key, const AttrObject& maptmp) {
+	return fmt->format(fmt->msg_get(key), maptmp);
+}
 
-string DiceModManager::format(const string& s, AttrObject context, bool isTrust, const dict_ci<string>& dict) const {
-	//÷±Ω”÷ÿ∂®œÚ
+AttrVar DiceModManager::format(const string& s, const AttrObject& context, bool isTrust, const dict_ci<string>& dict) const {
+	//Áõ¥Êé•ÈáçÂÆöÂêë
 	if (s[0] == '&') {
 		const string key = s.substr(1);
 		if (auto val{ getContextItem(context, key, isTrust) }) {
-			return val.print();
+			return val;
 		}
 		else if (const auto it = dict.find(key); it != dict.end()) {
 			return format(it->second, context, isTrust, dict);
 		}
 		else if (const auto it = global_speech.find(key); it != global_speech.end()) {
-			return fmt->format(it->second.express(), context, isTrust, dict);
+			return format(it->second.express(), context, isTrust, dict);
 		}
 	}
 	if (s.find('{') == string::npos)return s;
-	return Parser(s, context, isTrust, dict);
+	return formatMsg(s, context, isTrust, dict);
 }
 std::shared_mutex GlobalMsgMutex;
 string DiceModManager::msg_get(const string& key)const {
@@ -630,9 +444,9 @@ void DiceModManager::msg_edit(const string& key, const string& val){
 	saveJMap(DiceDir / "conf" / "CustomMsg.json", EditedMsg);
 }
 
-string DiceModManager::get_help(const string& key, AttrObject context) const{
+string DiceModManager::get_help(const string& key, const AttrObject& context) const{
 	if (const auto it = global_helpdoc.find(key); it != global_helpdoc.end()){
-		return format(it->second, context, {}, global_helpdoc);
+		return format(it->second, context, true, global_helpdoc);
 	}
 	return {};
 }
@@ -655,22 +469,50 @@ struct help_sorter {
 		return _Left < _Right;
 	}
 };
+string DiceModManager::prev_help(const string& key, const AttrObject& context) const {
+	if (const auto it = global_helpdoc.find(key); it != global_helpdoc.end()) {
+		return it->second;
+	}
+	else if (auto keys{ querier.search(key) }; !keys.empty()) {
+		if (keys.size() == 1) {
+			auto word{ *keys.begin() };
+			context->set("redirect_key", word);
+			context->set("redirect_res", global_helpdoc.at(word));
+			return getMsg("strHelpRedirect", context);
+		}
+		else {
+			std::priority_queue<string, vector<string>, help_sorter> qKey;
+			for (auto& key : keys) {
+				qKey.emplace(".help " + key);
+			}
+			ShowList res;
+			while (!qKey.empty() && res.size() <= 20) {
+				res << qKey.top();
+				qKey.pop();
+			}
+			context->set("res", res.show("\n"));
+			return getMsg("strHelpSuggestion", context);
+		}
+	}
+	else return getMsg("strHelpNotFound", context);
+	return {};
+}
 
 void DiceModManager::_help(DiceEvent* job) {
-	if (job->is_empty("help_word")) {
+	string word{ job->get_str("help_word") };
+	if (word.empty()) {
 		job->reply(getMsg("strBotHeader") + Dice_Short_Ver + "\n" + getMsg("strHlpMsg"));
 		return;
 	}
-	else if (const auto it = global_helpdoc.find(job->get_str("help_word"));
+	else if (const auto it = global_helpdoc.find(word);
 		it != global_helpdoc.end()) {
-		job->reply(format(it->second, *job, {}, global_helpdoc));
+		job->reply(format(it->second, *job, true, global_helpdoc));
 	}
-	else if (auto keys = querier.search(job->get_str("help_word"));!keys.empty()) {
+	else if (auto keys = querier.search(word);!keys.empty()) {
 		if (keys.size() == 1) {
 			auto word{ *keys.begin() };
 			job->set("redirect_key", word);
 			job->set("redirect_res", get_help(word, *job));
-			console.log("Ω¸À∆∆•≈‰" + word + ":"+job->get_str("redirect_res"), 0);
 			job->replyMsg("strHelpRedirect");
 		}
 		else {
@@ -689,15 +531,14 @@ void DiceModManager::_help(DiceEvent* job) {
 		}
 	}
 	else job->replyMsg("strHelpNotFound");
-	cntHelp[job->get_str("help_word")] += 1;
-	saveJMap(DiceDir / "user" / "HelpStatic.json",cntHelp);
+	cntHelp[word] += 1;
+	saveJMap(DiceDir / "user" / "HelpStatic.json", cntHelp);
 }
 
 void DiceModManager::set_help(const string& key, const string& val){
-	CustomHelp[key] = val;
-	saveJMap(DiceDir / "conf" / "CustomHelp.json", CustomHelp);
 	if (!global_helpdoc.count(key))querier.insert(key);
-	global_helpdoc[key] = val;
+	global_helpdoc[key] = CustomHelp[key] = (val == "NULL") ? "" : val;
+	saveJMap(DiceDir / "conf" / "CustomHelp.json", CustomHelp);
 }
 void DiceModManager::rm_help(const string& key){
 	if(CustomHelp.erase(key)){
@@ -706,61 +547,59 @@ void DiceModManager::rm_help(const string& key){
 	}
 }
 
-time_t parse_seconds(const AttrVar& time) {
+static time_t parse_seconds(const AttrVar& time) {
 	if (time.is_numberic())return time.to_int();
-	if (AttrObject t{ time.to_obj() }; !t.empty())
-		return t.get_ll("second") + t.get_ll("minute") * 60 + t.get_ll("hour") * 3600 + t.get_ll("day") * 86400;
+	if (auto t{ time.to_obj() }; !t->empty())
+		return t->get_ll("second") + t->get_ll("minute") * 60 + t->get_ll("hour") * 3600 + t->get_ll("day") * 86400;
 	return 0;
 }
-Clock parse_clock(const AttrVar& time) {
+static Clock parse_clock(const AttrVar& time) {
 	Clock clock{ 0,0 };
-	if (AttrObject t{ time.to_obj() }; !t.empty()) {
-		clock.first = t.get_int("hour");
-		clock.second = t.get_int("minute");
+	if (auto t{ time.to_obj() }; !t->empty()) {
+		clock.first = t->get_int("hour");
+		clock.second = t->get_int("minute");
 	}
 	return clock;
 }
 
 void DiceModManager::call_cycle_event(const string& id) {
 	if (id.empty() || !global_events.count(id))return;
-	AttrObject eve{ global_events[id] };
-	if (eve["action"].is_function()) {
-		lua_call_event(eve, eve["action"]);
-	}
-	else if (auto action{ eve.get_dict("action") }; action->count("lua")) {
-		lua_call_event(eve, action->at("lua"));
-	}
-	auto trigger{ eve.get_dict("trigger") };
-	if (trigger->count("cycle")) {
+	AttrObject& eve{ global_events[id] };
+	if (auto trigger{ eve->get_obj("trigger") }; trigger->has("cycle")) {
 		sch.add_job_for(parse_seconds(trigger->at("cycle")), eve);
 	}
+	if (auto action{ eve->get_obj("action") })call_event(eve.p, action);
 }
 void DiceModManager::call_clock_event(const string& id) {
 	if (id.empty() || !global_events.count(id))return;
-	AttrObject eve{ global_events[id] };
-	auto action{ eve["action"] };
-	if (!action)return;
-	else if (action.is_table() && action.to_dict()->count("lua")) {
-		action = action.to_dict()->at("lua");
-	}
-	lua_call_event(eve, action);
+	AttrObject& eve{ global_events[id] };
+	if (auto action{ eve->get_obj("action") })call_event(eve.p, action);
 }
-bool DiceModManager::call_hook_event(AttrObject eve) {
-	string hookEvent{ eve.has("hook") ? eve.get_str("hook") : eve.get_str("Event") };
+bool DiceModManager::call_hook_event(const AttrObject& eve) {
+	string hookEvent{ eve->has("hook") ? eve->get_str("hook") : eve->get_str("Event") };
 	if (hookEvent.empty())return false;
 	for (auto& [id, hook] : multi_range(hook_events, hookEvent)) {
-		auto action{ hook["action"] };
-		if (!action)continue;
-		else if (action.is_table() && action.to_dict()->count("lua")) {
-			action = action.to_obj()["lua"];
+		if (auto action{ hook->get_obj("action")}) {
+			if (hookEvent == "StartUp" || hookEvent == "DayEnd" || hookEvent == "DayNew") {
+				if (action->has("lua")) {
+					std::thread th(lua_call_event, eve.p, action->at("lua"));
+					th.detach();
+				}
+				if (action->has("js")) {
+					std::thread th(js_call_event, eve.p, action->at("js"));
+					th.detach();
+				}
+#ifdef DICE_PYTHON
+				if (action->has("py")) {
+					std::thread th(py_call_event, eve.p, action->at("py"));
+					th.detach();
+				}
+#endif //DICE_PYTHON
+			}
+			else call_event(eve.p, action);
 		}
-		if (hookEvent == "StartUp" || hookEvent == "DayEnd" || hookEvent == "DayNew") {
-			std::thread th(lua_call_event, eve, action);
-			th.detach();
-		}
-		else lua_call_event(eve, action);
 	}
-	return eve.is("blocked");
+	return eve->is("blocked");
 }
 
 string DiceModManager::list_reply(int type)const {
@@ -778,10 +617,10 @@ string DiceModManager::list_reply(int type)const {
 	for (const auto& [key, reply] : final_reply.regex_items) {
 		if (type & (int)reply->type)listRegex << key;
 	}
-	if (!listMatch.empty())listTotal << "[ÕÍ»´∆•≈‰] " + listMatch.dot(" | ").show();
-	if (!listPrefix.empty())listTotal << "[«∞◊∫∆•≈‰] " + listPrefix.dot(" | ").show();
-	if (!listSearch.empty())listTotal << "[ƒ£∫˝∆•≈‰] " + listSearch.dot(" | ").show();
-	if (!listRegex.empty())listTotal << "[’˝‘Ú∆•≈‰] " + listRegex.dot(" | ").show();
+	if (!listMatch.empty())listTotal << "[ÂÆåÂÖ®ÂåπÈÖç] " + listMatch.dot(" | ").show();
+	if (!listPrefix.empty())listTotal << "[ÂâçÁºÄÂåπÈÖç] " + listPrefix.dot(" | ").show();
+	if (!listSearch.empty())listTotal << "[Ê®°Á≥äÂåπÈÖç] " + listSearch.dot(" | ").show();
+	if (!listRegex.empty())listTotal << "[Ê≠£ÂàôÂåπÈÖç] " + listRegex.dot(" | ").show();
 	return "\n" + ((listTotal.size() > 1 && listTotal.length() > 256)
 		? listTotal.show("\f") : listTotal.show("\n"));
 }
@@ -798,9 +637,9 @@ bool DiceModManager::del_reply(const string& key) {
 	return false;
 }
 void DiceModManager::save_reply() {
-	fifo_json j = fifo_json::object();
+	fifo_json j;
 	for (const auto& [word, reply] : custom_reply) {
-		j[GBKtoUTF8(word)] = reply->writeJson();
+		j[word] = reply->writeJson();
 	}
 	if (j.empty()) std::filesystem::remove(DiceDir / "conf" / "CustomMsgReply.json");
 	else fwriteJson(DiceDir / "conf" / "CustomMsgReply.json", j, 0);
@@ -835,28 +674,40 @@ bool DiceModManager::call_task(const string& task) {
 	return false;
 }
 
-string DiceModManager::script_path(const string& name)const {
-	if (auto it{ global_scripts.find(name) }; it != global_scripts.end()) {
+string DiceModManager::lua_path(const string& name)const {
+	if (auto it{ global_lua_scripts.find(name) }; it != global_lua_scripts.end()) {
 		return it->second;
 	}
 	return {};
+}
+string DiceModManager::js_path(const string& name)const {
+	if (auto it{ global_js_scripts.find(name) }; it != global_js_scripts.end()) {
+		return it->second;
+	}
+	return {};
+}
+std::optional<std::filesystem::path> DiceModManager::py_path(const string& name)const {
+	if (auto it{ global_py_scripts.find(name) }; it != global_py_scripts.end()) {
+		return it->second;
+	}
+	return std::nullopt;
 }
 
 #ifndef __ANDROID__
 DiceMod::DiceMod(const string& mod, size_t i, const string& url) :name(mod), index(i), pathDir(DiceDir / "mod" / mod),
 repo(std::make_shared<DiceRepo>(pathDir, url)) {
 	if (!fs::exists(pathDir)) {
-		console.log(getMsg("strSelfNick") + "∞≤◊∞mod°∏" + mod + "°π≤÷ø‚ ß∞‹£°", 0);
+		console.log(getMsg("strSelfNick") + "ÂÆâË£Ömod„Äå" + mod + "„Äç‰ªìÂ∫ìÂ§±Ë¥•ÔºÅ", 0);
 	}
 	else if (!fs::exists(pathDir / "descriptor.json")) {
-		console.log(getMsg("strSelfNick") + "∞≤◊∞mod°∏" + mod + "°π“Ï≥£:’“≤ªµΩdescriptor.json", 1);
+		console.log(getMsg("strSelfNick") + "ÂÆâË£Ömod„Äå" + mod + "„ÄçÂºÇÂ∏∏:Êâæ‰∏çÂà∞descriptor.json", 1);
 	}
 	else {
 		pathJson = DiceDir / "mod" / (mod + ".json");
 		fs::copy_file(pathDir / "descriptor.json", pathJson, fs::copy_options::overwrite_existing);
 		string reason;
 		if (!loadDesc(reason)) {
-			console.log(getMsg("strSelfNick") + "∞≤◊∞∞≤◊∞°∏" + mod + "°π ß∞‹:" + reason, 0);
+			console.log(getMsg("strSelfNick") + "ÂÆâË£Ö„Äå" + mod + "„ÄçÂ§±Ë¥•:" + reason, 0);
 		}
 	}
 }
@@ -869,32 +720,36 @@ void DiceMod::remote(const string& url) {
 string DiceMod::desc()const {
 	ShowList li;
 	li << "[" + to_string(index) + "]" + (title.empty() ? name : title);
-	if (!ver.exp.empty())li << "- ∞Ê±æ: " + ver.exp;
-	if (!author.empty())li << "- ◊˜’ﬂ: " + author;
-	if (!brief.empty())li << "- ºÚΩÈ: " + brief;
+	if (!ver.exp.empty())li << "- ÁâàÊú¨: " + ver.exp;
+	if (!author.empty())li << "- ‰ΩúËÄÖ: " + author;
+	if (!brief.empty())li << "- ÁÆÄ‰ªã: " + brief;
 	return li.show("\n");
 }
 string DiceMod::detail()const {
 	ShowList li;
-	if (!events.empty())li << "-  ¬º˛: " + to_string(events.size()) + "Ãı";
-	if (!reply_list.empty())li << "- ªÿ∏¥: " + to_string(reply_list.size()) + "œÓ";
-	if (!scripts.empty())li << "- Ω≈±æ: " + to_string(scripts.size()) + "∑›";
-	if (!helpdoc.empty())li << "- ∞Ô÷˙: " + to_string(helpdoc.size()) + "Ãı";
-	if (!speech.empty())li << "- Ã®¥ : " + to_string(speech.size()) + "œÓ";
-	if (cntImage)li << "- ÕºœÒ: " + to_string(cntImage) + "∑›";
-	if (cntAudio)li << "- “Ù∆µ: " + to_string(cntAudio) + "∑›";
+	if (!rules.empty())li << "- ËßÑÂàôÈõÜ: " + to_string(rules.size()) + " ÈÉ®";
+	if (!card_models.empty())li << "- ËßíËâ≤Âç°: " + to_string(card_models.size()) + " Áâà";
+	if (!events.empty())li << "- ‰∫ã‰ª∂: " + to_string(events.size()) + "Êù°";
+	if (!reply_list.empty())li << "- ÂõûÂ§ç: " + to_string(reply_list.size()) + "È°π";
+	if (!lua_scripts.empty())li << "- luaËÑöÊú¨: " + to_string(lua_scripts.size()) + "‰ªΩ";
+	if (!js_scripts.empty())li << "- jsËÑöÊú¨: " + to_string(js_scripts.size()) + "‰ªΩ";
+	if (!py_scripts.empty())li << "- pyËÑöÊú¨: " + to_string(py_scripts.size()) + "‰ªΩ";
+	if (!helpdoc.empty())li << "- Â∏ÆÂä©: " + to_string(helpdoc.size()) + "Êù°";
+	if (!speech.empty())li << "- Âè∞ËØç: " + to_string(speech.size()) + "È°π";
+	if (cntImage)li << "- ÂõæÂÉè: " + to_string(cntImage) + "‰ªΩ";
+	if (cntAudio)li << "- Èü≥È¢ë: " + to_string(cntAudio) + "‰ªΩ";
 	return desc() + "\n" + li.show("\n");
 }
 bool DiceMod::loadDesc(string& cb) {
 	try {
 		fifo_json j = freadJson(pathJson);
 		if (j.is_null()) {
-			cb = "(Œ¥∂¡»°µΩjson)";
+			cb = "(Êú™ËØªÂèñÂà∞json)";
 			return false;
 		}
 		if (j.count("dice_build")) {
 			if (j["dice_build"] > Dice_Build) {
-				cb = "(Dice!buildµÕ”⁄À˘–Ë" + to_string(j["dice_build"].get<int>()) + ")";
+				cb = "(Dice!build‰Ωé‰∫éÊâÄÈúÄ" + to_string(j["dice_build"].get<int>()) + ")";
 				return false;
 			}
 		}
@@ -910,31 +765,31 @@ bool DiceMod::loadDesc(string& cb) {
 				}
 			}
 			if (!fault.empty()) {
-				cb = "(»±…Ÿ«∞÷√mod:" + fault.show() + ")";
+				cb = "(Áº∫Â∞ëÂâçÁΩÆmod:" + fault.show() + ")";
 				return false;
 			}
 			else if (!post.empty()) {
-				console.log("æØ∏Ê£∫" + name
-					+ "”Î«∞÷√mod[" + post.show() + "]À≥–Úµπ÷√", 1);
+				console.log("Ë≠¶ÂëäÔºö" + name
+					+ "‰∏éÂâçÁΩÆmod[" + post.show() + "]È°∫Â∫èÂÄíÁΩÆ", 1);
 			}
 		}
-		if (j.count("title"))title = UTF8toGBK(j["title"].get<string>());
-		else if (j.count("mod"))title = UTF8toGBK(j["mod"].get<string>());
-		if (j.count("ver"))ver = UTF8toGBK(j["ver"].get<string>());
-		if (j.count("author"))author = UTF8toGBK(j["author"].get<string>());
-		if (j.count("brief"))brief = UTF8toGBK(j["brief"].get<string>());
+		if (j.count("title"))title = j["title"];
+		else if (j.count("mod"))title = j["mod"];
+		if (j.count("ver"))ver = j["ver"].get<string>();
+		if (j.count("author"))author = j["author"];
+		if (j.count("brief"))brief = j["brief"];
 		if (j.count("helpdoc")) {
 			readJMap(j["helpdoc"], helpdoc);
 		}
 		if (j.count("speech")) {
 			for (auto& it : j["speech"].items()) {
-				speech[UTF8toGBK(it.key())] = it.value();
+				speech[it.key()] = it.value();
 			}
 		}
 		loadDir();
 	}
 	catch (fifo_json::exception& e) {
-		cb = "(jsonΩ‚Œˆ¥ÌŒÛ)";
+		cb = "(jsonËß£ÊûêÈîôËØØ)";
 		return false;
 	}
 	return true;
@@ -953,49 +808,93 @@ void DiceMod::loadDir() {
 			for (auto& p : fSpeech) {
 				try {
 					YAML::Node yaml{ YAML::LoadFile(getNativePathString(p)) };
-					if (!yaml.IsMap()) {
-						continue;
-					}
-					for (auto it : yaml) {
-						speech[UTF8toGBK(it.first.Scalar())] = it.second;
+					if (yaml.IsMap()) {
+						for (auto it : yaml) {
+							speech[it.first.Scalar()] = it.second;
+						}
 					}
 				}
 				catch (std::exception& e) {
-					console.log(getNativePathString(cut_relative(p, pathDir)) + "Ω‚Œˆ¥ÌŒÛ!" + e.what(), 0b10);
+					console.log(cut_relative(p, pathDir).u8string() + "Ëß£ÊûêÈîôËØØ!" + e.what(), 0b10);
+				}
+			}
+		}
+		if (auto dirScript{ pathDir / "script" }; fs::exists(dirScript)) {
+			vector<std::filesystem::path> fScripts;
+			listDir(dirScript, fScripts, true);
+			for (auto p : fScripts) {
+				if (p.extension() == ".lua") {
+					string script_name{ cut_stem((p.stem() == "init") ? p.parent_path() : p,dirScript) };
+					lua_scripts[script_name] = getNativePathString(p);
+				}
+				else if (p.extension() == ".js") {
+					string script_name{ cut_stem(p,dirScript) };
+					js_scripts[script_name] = getNativePathString(p);
+				}
+				else if (p.extension() == ".py") {
+					string script_name{ cut_stem(p,dirScript) };
+					py_scripts[script_name] = p;
+				}
+			}
+		}
+		listDir(pathDir / "reply", luaFiles, true);
+		listDir(pathDir / "event", luaFiles, true);
+		loadLua();
+		if (auto dirRule{ pathDir / "rulebook" }; fs::exists(dirRule)) {
+			if(vector<std::filesystem::path> fSpeech; listDir(dirRule, fSpeech))
+			for (auto& p : fSpeech) {
+				try {
+					if (YAML::Node yaml{ YAML::LoadFile(getNativePathString(p)) }; yaml.IsMap()) {
+						string rulename{ yaml["rule"].Scalar() };
+						auto& rule{ rules[rulename]};
+						if (yaml["manual"])for (auto it : yaml["manual"]) {
+							rule.manual[it.first.Scalar()] = it.second.Scalar();
+						}
+						if (yaml["tape"])for (auto it : yaml["tape"]) {
+							rule.cassettes[it.first.Scalar()] = AttrVar(it.second).to_obj();
+						}
+					}
+					else console.log(cut_relative(p, pathDir).u8string() + "yamlÊ†ºÂºè‰∏ç‰∏∫ÂØπË±°!", 0b10);
+				}
+				catch (std::exception& e) {
+					console.log(cut_relative(p, pathDir).u8string() + "Ëß£ÊûêÈîôËØØ!" + e.what(), 0b10);
+				}
+			}
+		}
+		if (auto dirModel{ pathDir / "model" }; fs::exists(dirModel)) {
+			if (vector<std::filesystem::path> fModels; listDir(dirModel, fModels, true)) {
+				for (auto& p : fModels) {
+					loadCardTemp(p, card_models);
+				}
+				for (auto& [name, model] : card_models) {
+					for (auto& a : model.alias) {
+						model_alias[a] = name;
+					}
 				}
 			}
 		}
 		if (fs::exists(pathDir / "image")) {
+			std::filesystem::create_directories(dirExe / "data" / "image");
 			std::filesystem::copy(pathDir / "image", dirExe / "data" / "image",
 				std::filesystem::copy_options::recursive |
 				(Enabled ? std::filesystem::copy_options::update_existing : std::filesystem::copy_options::overwrite_existing));
 			cntImage = cntDirFile(pathDir / "image");
 		}
 		if (fs::exists(pathDir / "audio")) {
+			std::filesystem::create_directories(dirExe / "data" / "record");
 			std::filesystem::copy(pathDir / "audio", dirExe / "data" / "record",
-				std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+				(Enabled ? std::filesystem::copy_options::update_existing : std::filesystem::copy_options::overwrite_existing));
 			cntAudio = cntDirFile(pathDir / "audio");
 		}
-		if (auto dirScript{ pathDir / "script" }; fs::exists(dirScript)) {
-			vector<std::filesystem::path> fScripts;
-			listDir(dirScript, fScripts, true);
-			for (auto p : fScripts) {
-				if (p.extension() != ".lua")continue;
-				string script_name{ cut_stem((p.stem() == "init") ? p.parent_path() : p,dirScript) };
-				string strPath{ getNativePathString(p) };
-				scripts[script_name] = strPath;
-			}
-		}
-		listDir(pathDir / "reply", luaFiles, true);
-		listDir(pathDir / "event", luaFiles, true);
-		loadLua();
 	}
 	loaded = true;
 }
 bool DiceMod::reload(string& cb) {
 	helpdoc.clear();
 	speech.clear();
-	scripts.clear();
+	lua_scripts.clear();
+	js_scripts.clear();
+	py_scripts.clear();
 	luaFiles.clear();
 	reply_list.clear();
 	events.clear();
@@ -1004,19 +903,21 @@ bool DiceMod::reload(string& cb) {
 	return loadDesc(cb);
 }
 int DiceModManager::load(ResList& resLog){
-	//∂¡»°modπ‹¿ÌŒƒº˛
+	//ËØªÂèñmodÁÆ°ÁêÜÊñá‰ª∂
 	auto jFile{ freadJson(DiceDir / "conf" / "ModList.json") };
 	if (!jFile.empty()) {
 		for (auto& j : jFile) {
 			if (!j.count("name"))continue;
-			string modName{ UTF8toGBK(j["name"].get<string>()) };
-			auto mod{ std::make_shared<DiceMod>(DiceMod{ modName,modOrder.size(),
-				j.count("active") ? bool(j["active"]) : true}) };
-			modList[modName] = mod;
-			modOrder.push_back(mod);
+			string modName{ j["name"] };
+			if (!modList.count(modName)) {
+				auto mod{ std::make_shared<DiceMod>(DiceMod{ modName,modOrder.size(),
+					j.count("active") ? bool(j["active"]) : true}) };
+				modList[modName] = mod;
+				modOrder.push_back(mod);
+			}
 		}
 	}
-	//∂¡»°mod
+	//ËØªÂèñmod
 	vector<std::filesystem::path> ModFile;
 	vector<string> sModErr;
 	auto dirMod{ DiceDir / "mod" };
@@ -1024,7 +925,7 @@ int DiceModManager::load(ResList& resLog){
 		bool newMod{ false };
 		for (auto& pathMod : ModFile) {
 			if (pathMod.extension() != ".json")continue;
-			if (string modName{ UTF8toGBK(pathMod.stem().u8string()) }; modList.count(modName)) {
+			if (string modName{ pathMod.stem().u8string() }; modList.count(modName)) {
 				auto mod{ modList[modName] };
 				mod->file(pathMod);
 			}
@@ -1049,60 +950,70 @@ int DiceModManager::load(ResList& resLog){
 				else sModErr.push_back(mod->name + reason);
 			}
 			catch (fifo_json::exception& e) {
-				sModErr.push_back(mod->name + "(.jsonΩ‚Œˆ¥ÌŒÛ)");
+				sModErr.push_back(mod->name + "(.jsonËß£ÊûêÈîôËØØ)");
 				continue;
 			}
 		}
-		if (cntMod)resLog << "∂¡»°/mod/÷–µƒ" + std::to_string(cntMod) + "√∂mod";
+		if (cntMod)resLog << "ËØªÂèñ/mod/‰∏≠ÁöÑ" + std::to_string(cntMod) + "Êûömod";
 		if (!sModErr.empty()) {
-			resLog << "∂¡»° ß∞‹" + std::to_string(sModErr.size()) + "œÓ:";
+			resLog << "ËØªÂèñÂ§±Ë¥•" + std::to_string(sModErr.size()) + "È°π:";
 			for (auto& it : sModErr) {
 				resLog << it;
 			}
 		}
 	}
+	//custom_msg
+	try {
+		std::unique_lock lock(GlobalMsgMutex);
+		if (loadJMap(DiceDir / "conf" / "CustomMsg.json", EditedMsg) >= 0) {
+			map_merge(GlobalMsg, EditedMsg);
+		}
+	}
+	catch (const std::exception& e) {
+		console.log(string("ËØªÂèñ/conf/CustomMsg.jsonÂ§±Ë¥•!") + e.what(), 1, printSTNow());
+	}
 	//custom_help
 	if (loadJMap(DiceDir / "conf" / "CustomHelp.json", CustomHelp) == -1)
-		resLog << "Ω‚Œˆ/conf/CustomHelp.json ß∞‹£°";
+		resLog << "Ëß£Êûê/conf/CustomHelp.jsonÂ§±Ë¥•ÔºÅ";
 	else if(!CustomHelp.empty())
-		resLog << "∂¡»°/conf/CustomHelp.json÷–µƒ" + std::to_string(CustomHelp.size()) + "Ãı∞Ô÷˙¥ Ãı";
+		resLog << "ËØªÂèñ/conf/CustomHelp.json‰∏≠ÁöÑ" + std::to_string(CustomHelp.size()) + "Êù°Â∏ÆÂä©ËØçÊù°";
 	loadJMap(DiceDir / "user" / "HelpStatic.json", cntHelp);
 	//custom_reply
 	loadPlugin(resLog);
 	if (fifo_json jFile = freadJson(DiceDir / "conf" / "CustomMsgReply.json"); !jFile.empty()) {
 		try {
 			for (auto& reply : jFile.items()) {
-				if (std::string key = UTF8toGBK(reply.key()); !key.empty()) {
+				if (std::string key = reply.key(); !key.empty()) {
 					ptr<DiceMsgReply> p{ custom_reply[key] = std::make_shared<DiceMsgReply>() };
 					p->title = key; 
 					p->readJson(reply.value());
 				}
 			}
-			resLog << "∂¡»°/conf/CustomMsgReply.json÷–µƒ" + std::to_string(jFile.size()) + "Ãı◊‘∂®“Âªÿ∏¥";
+			resLog << "ËØªÂèñ/conf/CustomMsgReply.json‰∏≠ÁöÑ" + std::to_string(jFile.size()) + "Êù°Ëá™ÂÆö‰πâÂõûÂ§ç";
 		}
 		catch (const std::exception& e) {
-			resLog << "Ω‚Œˆ/conf/CustomMsgReply.json≥ˆ¥Ì:" << e.what();
+			resLog << "Ëß£Êûê/conf/CustomMsgReply.jsonÂá∫Èîô:" << e.what();
 		}
 	}
 	else {
 		std::map<std::string, std::vector<std::string>, less_ci> mRegexReplyDeck;
 		std::map<std::string, std::vector<std::string>, less_ci> mReplyDeck;
 		if (loadJMap(DiceDir / "conf" / "CustomReply.json", mReplyDeck) > 0) {
-			resLog << "«®“∆CustomReply" + to_string(mReplyDeck.size()) + "Ãı";
+			resLog << "ËøÅÁßªCustomReply" + to_string(mReplyDeck.size()) + "Êù°";
 			for (auto& [key, deck] : mReplyDeck) {
 				ptr<DiceMsgReply> reply{ custom_reply[key] = std::make_shared<DiceMsgReply>() };
 				reply->title = key;
 				reply->keyMatch[0] = std::make_unique<vector<string>>(vector<string>{ key });
-				reply->deck = deck;
+				reply->answer = AnysTable(deck);
 			}
 		}
 		if (loadJMap(DiceDir / "conf" / "CustomRegexReply.json", mRegexReplyDeck) > 0) {
-			resLog << "«®“∆’˝‘ÚReply" + to_string(mRegexReplyDeck.size()) + "Ãı";
+			resLog << "ËøÅÁßªÊ≠£ÂàôReply" + to_string(mRegexReplyDeck.size()) + "Êù°";
 			for (auto& [key, deck] : mRegexReplyDeck) {
 				ptr<DiceMsgReply> reply{ custom_reply[key] = std::make_shared<DiceMsgReply>() };
 				reply->title = key;
 				reply->keyMatch[3] = std::make_unique<vector<string>>(vector<string>{ key });
-				reply->deck = deck;
+				reply->answer = AnysTable(deck);
 			}
 		}
 		if(!custom_reply.empty())save_reply();
@@ -1125,29 +1036,61 @@ void DiceModManager::initCloud() {
 	}
 }
 void DiceModManager::build() {
-	isIniting = true; 
+	isIniting = true;
 	ShowList resLog;
-	size_t cntSpeech{ 0 }, cntHelp{ 0 };
+	size_t cntSpeech{ 0 }, cntHelp{ 0 }, cntModel{ 0 };
 	//init
 	map_merge(global_speech = transpeech, GlobalMsg);
 	global_helpdoc = HelpDoc;
-	global_scripts.clear();
+	global_lua_scripts.clear();
+	global_js_scripts.clear();
+	global_py_scripts.clear();
 	global_events.clear();
 	final_reply = {};
+	auto rules_new = std::make_shared<DiceRuleSet>();
+	dict_ci<ptr<CardTemp>> models{
+	{"COC7", std::make_shared<CardTemp>(ModelCOC7),},
+	};
 	//merge mod
+	dict_ci<> model_alias{
+		{"COC","COC7"},
+	};
 	for (auto& mod : modOrder) {
 		if (!mod->active || !mod->loaded)continue;
-		map_merge(global_scripts, mod->scripts);
+		map_merge(global_lua_scripts, mod->lua_scripts);
+		map_merge(global_js_scripts, mod->js_scripts);
+		map_merge(global_py_scripts, mod->py_scripts);
 		cntSpeech += map_merge(global_speech, mod->speech);
 		cntHelp += map_merge(global_helpdoc, mod->helpdoc);
+		rules_new->merge(mod->rules);
 		map_merge(final_reply.items, mod->reply_list);
 		map_merge(global_events, mod->events);
+		for (auto& [name, model] : mod->card_models) {
+			if (models.count(name)) {
+				models[name]->merge(model);
+			}
+			else {
+				models[name] = std::make_shared<CardTemp>(model);
+			}
+			++cntModel;
+		}
+		map_merge(model_alias, mod->model_alias);
 	}
 	//merge custom
+	if (rules_new->build())resLog << "Ê≥®ÂÜåËßÑÂàôÈõÜ " + to_string(rules_new->rules.size()) + " ÈÉ®";
+	ruleset.swap(rules_new);
+	if (cntModel)resLog << "Ê≥®ÂÜåËßíËâ≤Âç°Ê®°Êùø " + to_string(cntModel) + " Áâà";
+	for (auto& [name, model] : models) {
+		model->init();
+	}
+	if (cntModel || CardModels.size() > 2)CardModels.swap(models);
+	for (auto& [alias, name] : model_alias) {
+		CardModels[alias] = CardModels[name];
+	}
 	if (cntSpeech += map_merge(global_speech, EditedMsg))
-		resLog << "◊¢≤·speech " + to_string(cntSpeech) + " œÓ";
+		resLog << "Ê≥®ÂÜåspeech " + to_string(cntSpeech) + " È°π";
 	if (cntHelp += map_merge(global_helpdoc, CustomHelp))
-		resLog << "◊¢≤·help " + to_string(cntHelp) + " œÓ";
+		resLog << "Ê≥®ÂÜåhelp " + to_string(cntHelp) + " È°π";
 	querier = {};
 	for (const auto& [key, word] : global_helpdoc) {
 		querier.insert(key);
@@ -1155,25 +1098,27 @@ void DiceModManager::build() {
 	map_merge(final_reply.items, plugin_reply);
 	map_merge(final_reply.items, custom_reply);
 	if (!final_reply.items.empty()) {
-		resLog << "◊¢≤·reply " + to_string(final_reply.items.size()) + " œÓ";
+		resLog << "Ê≥®ÂÜåreply " + to_string(final_reply.items.size()) + " È°π";
 		final_reply.build();
 	}
-	if (!global_scripts.empty())resLog << "◊¢≤·script " + to_string(global_scripts.size()) + " ∑›";
+	if (!global_lua_scripts.empty())resLog << "Ê≥®ÂÜåluaËÑöÊú¨ " + to_string(global_lua_scripts.size()) + " ‰ªΩ";
+	if (!global_js_scripts.empty())resLog << "Ê≥®ÂÜåjsËÑöÊú¨ " + to_string(global_js_scripts.size()) + " ‰ªΩ";
+	if (!global_py_scripts.empty())resLog << "Ê≥®ÂÜåpyËÑöÊú¨ " + to_string(global_py_scripts.size()) + " ‰ªΩ";
 	if (!global_events.empty()) {
-		resLog << "◊¢≤·event " + to_string(global_events.size()) + " œÓ";
+		resLog << "Ê≥®ÂÜåevent " + to_string(global_events.size()) + " È°π";
 		clock_events.clear();
 		hook_events.clear();
 		unordered_set<string> cycle;
 		for (auto& [id, eve] : global_events) {
-			eve["id"] = id;
-			auto trigger{ eve.get_dict("trigger") };
-			if (trigger->count("cycle")) {
+			eve->at("id") = id;
+			auto trigger{ eve->get_obj("trigger") };
+			if (trigger->has("cycle")) {
 				if (!cycle_events.count(id)) {
 					call_cycle_event(id);
 				}
 				cycle.insert(id);
 			}
-			if (trigger->count("clock")) {
+			if (trigger->has("clock")) {
 				auto& clock{ trigger->at("clock") };
 				if (auto list{ clock.to_list() }) {
 					for (auto& clc : *list) {
@@ -1184,16 +1129,16 @@ void DiceModManager::build() {
 					clock_events.emplace(parse_clock(clock), id);
 				}
 			}
-			if (trigger->count("hook")) {
-				string nameEvent{ trigger->at("hook").to_str() };
+			if (trigger->has("hook")) {
+				string nameEvent{ trigger->get_str("hook") };
 				hook_events.emplace(nameEvent, eve);
 			}
 		}
 		cycle_events.swap(cycle);
 	}
 	if (!resLog.empty()) {
-		resLog << "ƒ£øÈº”‘ÿÕÍ±œ°Ã";
-		console.log(getMsg("strSelfName") + "\n" + resLog.show("\n"), 1, printSTNow());
+		resLog << "Ê®°ÂùóÂä†ËΩΩÂÆåÊØï‚àö";
+		console.log(getMsg("strSelfName") + "\n" + resLog.show("\n"), int(Enabled), printSTNow());
 	}
 	isIniting = false;
 }
@@ -1202,13 +1147,13 @@ void DiceModManager::clear(){
 	modList.clear();
 	selfdata_byFile.clear();
 	selfdata_byStem.clear();
-}
+}  
 
 void DiceModManager::save() {
 	fifo_json jFile = fifo_json::array();
 	for (auto& mod : modOrder) {
-		fifo_json j = fifo_json::object();
-		j["name"] = GBKtoUTF8(mod->name);
+		fifo_json j;
+		j["name"] = mod->name;
 		j["active"] = mod->active;
 		jFile.push_back(j);
 	}
@@ -1218,4 +1163,11 @@ void DiceModManager::save() {
 	else {
 		remove(DiceDir / "conf" / "ModList.json");
 	}
+}
+void call_event(const ptr<AnysTable>& eve, const AttrObject& action) {
+	if (action->has("lua"))lua_call_event(eve, action->at("lua"));
+	if (action->has("js"))js_call_event(eve, action->at("js"));
+#ifdef DICE_PYTHON
+	if (action->has("py"))py_call_event(eve, action->at("py"));
+#endif //DICE_PYTHON
 }

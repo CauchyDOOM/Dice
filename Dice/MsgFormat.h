@@ -9,8 +9,8 @@
  * |_______/   |________|  |________|  |________|  |__|
  *
  * Dice! QQ Dice Robot for TRPG
- * Copyright (C) 2018-2021 w4123溯洄
- * Copyright (C) 2019-2022 String.Empty
+ * Copyright (C) 2018-2021 w4123婧磩
+ * Copyright (C) 2019-2024 String.Empty
  *
  * This program is free software: you can redistribute it and/or modify it under the terms
  * of the GNU Affero General Public License as published by the Free Software Foundation,
@@ -26,17 +26,15 @@
 
 #ifndef DICE_MSG_FORMAT
 #define DICE_MSG_FORMAT
-#include <string>
 #include <map>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 #include "STLExtern.hpp"
 #include "DiceAttrVar.h"
 using std::string;
 
-typedef string(*GobalTex)();
-extern std::unordered_map<string, GobalTex> strFuncs;
+typedef string(*GlobalTex)();
+extern std::unordered_map<string, GlobalTex> strFuncs;
 
 class ResList
 {
@@ -105,7 +103,7 @@ public:
 	}
 };
 
-//按属性名输出项目
+//鎸夊睘鎬у悕杈撳嚭椤圭洰
 class AttrList {
 	std::unordered_map<string, string> mItem;
 	std::vector<string> vKey;
@@ -141,7 +139,9 @@ std::string listKey(T& m){
 }
 
 std::string listDeck(const std::vector<std::string>& v);
+std::string listDeck(const VarArray& v);
 
 std::string to_binary(int b);
 std::string strip(std::string);
+
 #endif /*DICE_MSG_FORMAT*/

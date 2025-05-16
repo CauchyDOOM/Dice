@@ -9,15 +9,15 @@ class Censor {
 	string dirWords;
 public:
 	enum class Level :size_t {
-		Ignore,		//ÎŞÊÓ
-		Notice,		//½ö0¼¶Í¨Öª
-		Caution,		//½ö1¼¶Í¨Öª
-		Warning,		//¾¯¸æÓÃ»§ÇÒ¾Ü¾ø³Æºô£¬²¢1¼¶Í¨Öª
-		Danger,		//¾¯¸æÓÃ»§ÇÒ¾Ü¾øÖ¸Áî£¬²¢3¼¶Í¨Öª
-		Critical,		//½öÕ¼Î»£¬²»ÆôÓÃ
+		Ignore,		//æ— è§†
+		Notice,		//ä»…0çº§é€šçŸ¥
+		Caution,		//ä»…1çº§é€šçŸ¥
+		Warning,		//è­¦å‘Šç”¨æˆ·ä¸”æ‹’ç»ç§°å‘¼ï¼Œå¹¶1çº§é€šçŸ¥
+		Danger,		//è­¦å‘Šç”¨æˆ·ä¸”æ‹’ç»æŒ‡ä»¤ï¼Œå¹¶3çº§é€šçŸ¥
+		Critical,		//ä»…å ä½ï¼Œä¸å¯ç”¨
 	};
 	dict_ci<Level> words;
-	fifo_dict_ci<Level> CustomWords;
+	dict_ci<Level> CustomWords;
 	Level get_level(const string&);
 	void insert(const string& word, Level);
 	void add_word(const string& word, Level);

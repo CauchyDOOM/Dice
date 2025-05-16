@@ -1,8 +1,8 @@
 /*
- * 自定义容器
- * Copyright (C) 2019-2022 String.Empty
- * 2022/08/18 添加grad_map
- * 2022/09/07 添加fifo_map&fifo_cmpr_ci
+ * STL container extern
+ * Copyright (C) 2019-2024 String.Empty
+ * 2022/08/18 add grad_map
+ * 2022/09/07 add fifo_map&fifo_cmpr_ci
  */
 #pragma once
 #include <string>
@@ -20,6 +20,19 @@ using std::multimap;
 using std::string;
 using std::to_string;
 using nlohmann::fifo_map;
+template<typename T>
+using ptr = std::shared_ptr<T>;
+
+template <typename Map1, typename Map2>
+size_t map_merge(Map1& m1, const Map2& m2) {
+	size_t t{ 0 };
+	for (auto& [k, v] : m2) {
+		m1[k] = v;
+		++t;
+	}
+	return t;
+}
+
 inline string toLower(string s) {
 	std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return tolower(c); });
 	return s;
@@ -84,6 +97,7 @@ template<typename T = std::string>
 using dict_ci = std::unordered_map<string, T, hash_ci, equal_ci>;
 template<typename T = std::string>
 using multidict_ci = std::unordered_multimap<string, T, hash_ci, equal_ci>;
+//using uset_ci = std::unordered_set<string, hash_ci, equal_ci>;
 
 class fifo_cmpr_ci {
 public:
@@ -96,6 +110,7 @@ public:
 	{}
 	bool operator()(const string & lhs, const string & rhs) const
 	{
+		if (lhs == rhs)return false;
 		// look up timestamps for both keys
 		const auto timestamp_lhs = m_keys->find(toLower(lhs));
 		const auto timestamp_rhs = m_keys->find(toLower(rhs));
@@ -151,14 +166,14 @@ public:
 		valElse = val;
 		return *this;
 	}
-	TVal& get_else() {
+	const TVal& get_else() const{
 		return valElse;
 	}
 	grad_map& set_step(TKey key, const TVal& val) {
 		grades[key] = val;
 		return *this;
 	}
-	TVal& operator[](TKey key) {
+	const TVal& operator[](TKey key) const{
 		if (auto it{ grades.upper_bound(key) }; it != grades.begin()) {
 			return (--it)->second;
 		}
@@ -294,6 +309,14 @@ std::string listID(const Con& list, const string& sepa = "|") {
 	return res.show(sepa);
 }
 template<class Con>
+std::string listIndex(const Con& list, const string& sepa = "\n") {
+	ShowList res;
+	for (auto id : list) {
+		res << id.to_string();
+	}
+	return res.show(sepa);
+}
+template<class Con>
 std::string listItem(const Con& list, const string& sepa = "|") {
 	ShowList res;
 	for (auto id : list) {
@@ -303,7 +326,7 @@ std::string listItem(const Con& list, const string& sepa = "|") {
 }
 
 
-//按优先级输出项目
+//鎸変紭鍏堢骇杈撳嚭椤圭洰
 template<typename Elem>
 class PriorList{
 	std::priority_queue<std::pair<Elem, string>> qItem;
@@ -325,7 +348,7 @@ public:
 		{
 			auto [prior, item] = qItem.top();
 			qItem.pop();
-			res += "\n" + to_string(++index) + "." + item + ":" + to_string(prior);
+			res += "\n" + to_string(++index) + "." + item + ": " + to_string(prior);
 		}
 		return res;
 	}

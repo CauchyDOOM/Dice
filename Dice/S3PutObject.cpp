@@ -17,19 +17,26 @@
 #undef GetMessage
 #endif
 
-// Aws SDKÉèÖÃ
+// Aws SDKè®¾ç½®
 Aws::SDKOptions options;
-Aws::Auth::AWSCredentials awsCredentials("", "");
-
-// ÅĞ¶ÏÎÄ¼şÊÇ·ñ´æÔÚ
+std::shared_ptr<Aws::Auth::AnonymousAWSCredentialsProvider> awsCredProvider{ std::make_shared<Aws::Auth::AnonymousAWSCredentialsProvider>() };
+std::shared_ptr<Aws::S3::S3EndpointProvider> awsEProvider;
+// åˆ¤æ–­æ–‡ä»¶æ˜¯å¦å­˜åœ¨
 bool file_exists(const std::string& file_name)
 {
 	std::error_code ec;
 	return std::filesystem::is_regular_file(file_name, ec);
 }
-
-// ÉÏ´«ÎÄ¼şÖÁS3, ²ÉÓÃS3-accelerate
-// ³É¹¦Ê±·µ»Ø"SUCCESS", ·ñÔò·µ»Ø´íÎóĞÅÏ¢
+void aws_init() {
+	Aws::InitAPI(options);
+	awsEProvider = Aws::MakeShared<Aws::S3::S3EndpointProvider>("S3Client");
+}
+void aws_shutdown() {
+	awsEProvider.reset();
+	Aws::ShutdownAPI(options); 
+}
+// ä¸Šä¼ æ–‡ä»¶è‡³S3, é‡‡ç”¨S3-accelerate
+// æˆåŠŸæ—¶è¿”å›"SUCCESS", å¦åˆ™è¿”å›é”™è¯¯ä¿¡æ¯
 std::string put_s3_object(const Aws::String& s3_bucket_name,
 	const Aws::String& s3_object_name,
 	const std::string& file_name,
@@ -46,7 +53,7 @@ std::string put_s3_object(const Aws::String& s3_bucket_name,
 	clientConfig.verifySSL = false;
 	clientConfig.endpointOverride = "s3-accelerate.amazonaws.com";
 	// Set up request
-	Aws::S3::S3Client s3_client(awsCredentials, clientConfig);
+	Aws::S3::S3Client s3_client(awsCredProvider, awsEProvider, clientConfig);
 	Aws::S3::Model::PutObjectRequest object_request;
 	object_request.SetBucket(s3_bucket_name);
 	object_request.SetKey(s3_object_name);

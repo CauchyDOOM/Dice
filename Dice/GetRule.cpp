@@ -7,7 +7,8 @@
  * |_______/   |________|  |________|  |________|  |__|
  *
  * Dice! QQ Dice Robot for TRPG
- * Copyright (C) 2018-2019 w4123ËÝä§
+ * Copyright (C) 2018-2021 w4123æº¯æ´„
+ * Copyright (C) 2019-2023 String.Empty
  *
  * This program is free software: you can redistribute it and/or modify it under the terms
  * of the GNU Affero General Public License as published by the Free Software Foundation,
@@ -20,13 +21,13 @@
  * You should have received a copy of the GNU Affero General Public License along with this
  * program. If not, see <http://www.gnu.org/licenses/>.
  */
-#include <string>
 #include <cstring>
 #include "DDAPI.h"
+#include "DiceRule.h"
 #include "GetRule.h"
-#include "GlobalVar.h"
 #include "EncodingConvert.h"
 #include "DiceNetwork.h"
+#include "DiceMod.h"
 
 
 using namespace std;
@@ -62,10 +63,25 @@ namespace GetRule
 		return get("", rawStr, des);
 	}
 
-	bool get(const std::string& rule, const std::string& name, std::string& des)
-	{
-		const string ruleName = GBKtoUTF8(rule);
-		const string itemName = GBKtoUTF8(name);
+	bool get(const std::string& rule, const std::string& name, std::string& des){
+		if (rule.empty()) {
+			if (auto entry{ ruleset->getManual(name) }) {
+				des = *entry;
+				return true;
+			}
+		}
+		else if (auto rulebook{ ruleset->get_rule(rule) }) {
+			if (auto entry{ rulebook->getManual(name) }) {
+				des = *entry;
+				return true;
+			}
+		}
+		else if (auto entry{ ruleset->getManual(name) }) {
+			des = *entry;
+			return true;
+		}
+		const string ruleName = rule;
+		const string itemName = name;
 
 		string data = "Name=" + UrlEncode(itemName) + "&QQ=" + to_string(DD::getLoginID()) + "&v=20190114";
 		if (!ruleName.empty())
@@ -83,12 +99,12 @@ namespace GetRule
 		delete[] frmdata;
 		if (reqRes)
 		{
-			des = UTF8toGBK(temp);
+			des = temp;
 			return true;
 		}
 		if (temp == getMsg("strRequestNoResponse"))
 		{
-			des = getMsg("strRuleNotFound");
+			des = getMsg("strRuleNotFound", AttrVars{ {"item",itemName } });
 		}
 		else
 		{

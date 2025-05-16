@@ -7,7 +7,8 @@
  * |_______/   |________|  |________|  |________|  |__|
  *
  * Dice! QQ Dice Robot for TRPG
- * Copyright (C) 2018-2019 w4123Ëİä§
+ * Copyright (C) 2018-2019 w4123æº¯æ´„
+ * Copyright (C) 2019-2024 String.Empty
  *
  * This program is free software: you can redistribute it and/or modify it under the terms
  * of the GNU Affero General Public License as published by the Free Software Foundation,
@@ -33,13 +34,16 @@ using namespace std;
 
 chatInfo::chatInfo(long long u, long long g, long long c) :uid(u), gid(g), chid(c) {
 	if (gid) {
-		if (chid)type = msgtype::Channel;
-		else type = msgtype::Group;
+		type = chid ? msgtype::Channel : msgtype::Group;
 	}
 	else {
-		if (chid)type = msgtype::ChannelPrivate;
-		else type = msgtype::Private;
+		type = chid ? msgtype::ChannelPrivate : msgtype::Private;
 	}
+}
+chatInfo::chatInfo(const AnysTable& obj):uid(obj.get_ll("uid")), gid(obj.get_ll("gid")), chid(obj.get_ll("chid")) {
+	type = (gid = obj.get_ll("gid"))
+		? chid ? msgtype::ChannelPrivate : msgtype::Private
+		: chid ? msgtype::Channel : msgtype::Group;
 }
 bool chatInfo::operator<(const chatInfo& other)const {
 	return type == other.type
@@ -56,7 +60,7 @@ bool chatInfo::operator==(const chatInfo& other)const {
 		&& chid == other.chid;
 }
 fifo_json to_json(const chatInfo& chat) {
-	fifo_json j = fifo_json::object();
+	fifo_json j;
 	if (chat.chid)j["chid"] = chat.chid;
 	if (chat.gid)j["gid"] = chat.gid;
 	if (chat.uid)j["uid"] = chat.uid;
@@ -71,22 +75,22 @@ chatInfo chatInfo::from_json(const fifo_json& chat) {
 	return chatInfo{ uid,gid,chid };
 }
 
-// ÏûÏ¢·¢ËÍ´æ´¢½á¹¹Ìå
+// æ¶ˆæ¯å‘é€å­˜å‚¨ç»“æ„ä½“
 struct msg_t
 {
 	string msg;
 	chatInfo target{};
 	msg_t() = default;
 
-	msg_t(string msg, chatInfo ct) : msg(move(msg)),target(ct)
+	msg_t(const string& s, chatInfo ct) : msg(s),target(ct)
 	{
 	}
 };
 
-// ÏûÏ¢·¢ËÍ¶ÓÁĞ
+// æ¶ˆæ¯å‘é€é˜Ÿåˆ—
 std::queue<msg_t> msgQueue;
 
-// ÏûÏ¢·¢ËÍ¶ÓÁĞËø
+// æ¶ˆæ¯å‘é€é˜Ÿåˆ—é”
 mutex msgQueueMutex;
 
 void AddMsgToQueue(const string& msg, long long target_id)
